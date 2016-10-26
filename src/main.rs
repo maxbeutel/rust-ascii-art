@@ -65,7 +65,7 @@ fn circle(radius: u32, point: (u32, u32)) -> HashMap<(u32, u32), Shape> {
         vec.insert(((x0 + x) as u32, (y0 - y) as u32), Shape::Circle);
 
         y += 1;
-        err += 1 + 2*y;
+        err += 1 + 2 * y;
 
         if 2 * (err - x) + 1 > 0
         {
