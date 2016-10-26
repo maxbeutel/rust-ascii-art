@@ -7,9 +7,9 @@ enum Shape {
 }
 
 fn canvas_index_to_coords(i: u32, num: u32) -> (u32, u32) {
-    match i < num {
-        true => { (i, 0) },
-        false => { (i % num, i / num) },
+    match i {
+        i if i < num => { (i, 0) },
+        _ => { (i % num, i / num) },
     }
 }
 
