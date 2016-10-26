@@ -1,0 +1,6 @@
+[package]
+name = "ascii-art"
+version = "0.1.0"
+authors = ["Max Beutel <me@maxbeutel.de>"]
+
+[dependencies]
