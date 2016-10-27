@@ -1,5 +1,17 @@
 use std::collections::HashMap;
 
+#[derive(PartialEq, PartialOrd, Debug)]
+struct Point(u32, u32);
+
+#[derive(PartialEq, PartialOrd, Debug)]
+struct Dimension(u32, u32);
+
+#[derive(PartialEq, PartialOrd, Debug)]
+struct Rectangle(Point, Point);
+
+#[derive(PartialEq, PartialOrd, Debug, Hash, Eq)]
+struct Coordinate(u32, u32);
+
 #[derive(Clone, Copy, Debug)]
 enum Shape {
     Canvas,
@@ -10,19 +22,19 @@ enum Shape {
     DiagonalLineRightToLeft,
 }
 
-fn canvas_index_to_coords(i: u32, num: u32) -> (u32, u32) {
-    if i < num { (i, 0) }
-    else { (i % num, i / num) }
+fn canvas_index_to_coords(i: u32, num: u32) -> Coordinate {
+    if i < num { Coordinate(i, 0) }
+    else { Coordinate(i % num, i / num) }
 }
 
-fn write(coords: (u32, u32), chr: char,  num: u32) {
+fn write(coords: &Coordinate, chr: char,  num: u32) {
     if coords.0 == num - 1 { println!("{}", chr); }
     else { print!("{} ", chr); }
     // if coords.0 == num - 1 { println!("{} ({}/{})", chr, coords.0, coords.1); }
     // else { print!("{} ({}/{}) ", chr, coords.0, coords.1); }
 }
 
-fn combine(a: HashMap<(u32, u32), Shape>, b: HashMap<(u32, u32), Shape>) -> HashMap<(u32, u32), Shape> {
+fn combine(a: HashMap<Coordinate, Shape>, b: HashMap<Coordinate, Shape>) -> HashMap<Coordinate, Shape> {
     let mut combined = HashMap::new();
 
     for (key, val) in a {
@@ -36,7 +48,7 @@ fn combine(a: HashMap<(u32, u32), Shape>, b: HashMap<(u32, u32), Shape>) -> Hash
     combined
 }
 
-fn canvas(size: (u32, u32)) -> HashMap<(u32, u32), Shape> {
+fn canvas(size: Dimension) -> HashMap<Coordinate, Shape> {
     let mut canvas_coords = HashMap::new();
 
     for i in 0..(size.0 * size.1) {
@@ -46,7 +58,7 @@ fn canvas(size: (u32, u32)) -> HashMap<(u32, u32), Shape> {
     canvas_coords
 }
 
-fn circle(radius: u32, point: (u32, u32)) -> HashMap<(u32, u32), Shape> {
+fn circle(radius: u32, point: Point) -> HashMap<Coordinate, Shape> {
     let x0 = point.0;
     let y0 = point.1;
 
@@ -55,17 +67,17 @@ fn circle(radius: u32, point: (u32, u32)) -> HashMap<(u32, u32), Shape> {
 
     let mut err: i32 = 0;
 
-    let mut vec = HashMap::new();
+    let mut coords = HashMap::new();
 
     while x >= y {
-        vec.insert((x0 + x, y0 + y), Shape::Circle);
-        vec.insert((x0 + y, y0 + x), Shape::Circle);
-        vec.insert((x0 - y, y0 + x), Shape::Circle);
-        vec.insert((x0 - x, y0 + y), Shape::Circle);
-        vec.insert((x0 - x, y0 - y), Shape::Circle);
-        vec.insert((x0 - y, y0 - x), Shape::Circle);
-        vec.insert((x0 + y, y0 - x), Shape::Circle);
-        vec.insert((x0 + x, y0 - y), Shape::Circle);
+        coords.insert(Coordinate(x0 + x, y0 + y), Shape::Circle);
+        coords.insert(Coordinate(x0 + y, y0 + x), Shape::Circle);
+        coords.insert(Coordinate(x0 - y, y0 + x), Shape::Circle);
+        coords.insert(Coordinate(x0 - x, y0 + y), Shape::Circle);
+        coords.insert(Coordinate(x0 - x, y0 - y), Shape::Circle);
+        coords.insert(Coordinate(x0 - y, y0 - x), Shape::Circle);
+        coords.insert(Coordinate(x0 + y, y0 - x), Shape::Circle);
+        coords.insert(Coordinate(x0 + x, y0 - y), Shape::Circle);
 
         y += 1;
         err += 1 + 2 * y as i32;
@@ -77,41 +89,48 @@ fn circle(radius: u32, point: (u32, u32)) -> HashMap<(u32, u32), Shape> {
         }
     }
 
-    vec
+    coords
 }
 
-fn line_shape(rectangle: (u32, u32, u32, u32)) -> Shape
-{
-    if rectangle.0 != rectangle.2 && rectangle.1 > rectangle.3 { Shape::DiagonalLineLeftToRight }
-    else if rectangle.0 != rectangle.2 && rectangle.1 < rectangle.3 { Shape::DiagonalLineRightToLeft }
-    else if rectangle.1 == rectangle.3 { Shape::HorizontalLine }
+fn line_shape(rectangle: Rectangle) -> Shape {
+    let x0 = (rectangle.0).0;
+    let y0 = (rectangle.0).1;
+    let x1 = (rectangle.1).0;
+    let y1 = (rectangle.1).1;
+
+    if x0 != x1 && y0 > y1 { Shape::DiagonalLineLeftToRight }
+    else if x0 != x1 && y0 < y1 { Shape::DiagonalLineRightToLeft }
+    else if y0 == y1 { Shape::HorizontalLine }
     else { Shape::VerticalLine }
 }
 
-fn line(rectangle: (u32, u32, u32, u32)) -> HashMap<(u32, u32), Shape> {
-    // @FIXME this typecasting is pretty ugly,
-    // maybe unpack tuple before into signed variables?
-    let dx = ((rectangle.2 - rectangle.0) as i32).abs();
+fn line(rectangle: Rectangle) -> HashMap<Coordinate, Shape> {
+    let x0 = (rectangle.0).0 as i32;
+    let y0 = (rectangle.0).1 as i32;
+    let x1 = (rectangle.1).0 as i32;
+    let y1 = (rectangle.1).1 as i32;
 
-    let sx: i32 = if rectangle.0 < rectangle.2 { 1 } else { -1 };
+    let dx = ((x1 - x0)).abs();
 
-    let dy = ((rectangle.3 - rectangle.1) as i32).abs();
-    let sy: i32 = if rectangle.1 < rectangle.3 { 1 } else { -1 };
+    let sx: i32 = if x0 < x1 { 1 } else { -1 };
+
+    let dy = ((y1 - y0)).abs();
+    let sy: i32 = if y0 < y1 { 1 } else { -1 };
 
     let tmp = if dx > dy { dx } else { -dy };
     let mut err = tmp / 2;
     let mut e2;
 
-    let mut x0_m = rectangle.0 as i32;
-    let mut y0_m = rectangle.1 as i32;
+    let mut x0_m = x0;
+    let mut y0_m = y0;
 
     let mut coords = HashMap::new();
     let line_shape = line_shape(rectangle);
 
     loop {
-        coords.insert((x0_m as u32, y0_m as u32), line_shape);
+        coords.insert(Coordinate(x0_m as u32, y0_m as u32), line_shape);
 
-        if x0_m == rectangle.2 as i32 && y0_m == rectangle.3 as i32 {
+        if x0_m == x1 as i32 && y0_m == y1 as i32 {
             break;
         }
 
@@ -131,34 +150,35 @@ fn line(rectangle: (u32, u32, u32, u32)) -> HashMap<(u32, u32), Shape> {
     coords
 }
 
-fn draw(num: u32, coords: HashMap<(u32, u32), Shape>) {
+fn draw(num: u32, coords: HashMap<Coordinate, Shape>) {
     let mut vec = Vec::new();
 
     for (key, value) in &coords {
-        vec.push((key.0, key.1, value));
+        vec.push((key, value));
     }
 
-    vec.sort_by_key(|&(x, _, _)| x);
-    vec.sort_by_key(|&(_, y, _)| (y as i32) * -1);
+    vec.sort_by_key(|&(coord, _)| coord.0);
+    vec.sort_by_key(|&(coord, _)| (coord.1 as i32) * -1);
 
-    for data in vec {
-        match data.2 {
-            &Shape::Canvas => write((data.0, data.1), ' ', num),
-            &Shape::Circle => write((data.0, data.1), 'o', num),
-            &Shape::HorizontalLine => write((data.0, data.1), '-', num),
-            &Shape::VerticalLine => write((data.0, data.1), '|', num),
-            &Shape::DiagonalLineLeftToRight => write((data.0, data.1), '\\', num),
-            &Shape::DiagonalLineRightToLeft => write((data.0, data.1), '/', num),
-       }
+    for (coord, shape) in vec {
+        match shape {
+            &Shape::Canvas => write(coord, ' ', num),
+            &Shape::Circle => write(coord, 'o', num),
+            &Shape::HorizontalLine => write(coord, '-', num),
+            &Shape::VerticalLine => write(coord, '|', num),
+            &Shape::DiagonalLineLeftToRight => write(coord, '\\', num),
+            &Shape::DiagonalLineRightToLeft => write(coord, '/', num),
+        }
     }
 }
 
 fn main() {
     let num = 10;
-    let canvas_size = (num, num);
-    let point_1 = (2, 2);
-    let point_2 = (3, 4);
-    let point_3 = (7, 7);
+    let canvas_size = Dimension(num, num);
+    let point_1 = Point(2, 2);
+    let point_2 = Point(3, 4);
+    let point_3 = Point(7, 7);
+    let rectangle = Rectangle(Point(0, 0), Point(0, 9));
 
-    draw(num, combine(canvas(canvas_size), combine(circle(1, point_3), combine(circle(1, point_2), combine(circle(1, point_1), line((0, 0, 0, 9)))))));
+    draw(num, combine(canvas(canvas_size), combine(circle(1, point_3), combine(circle(1, point_2), combine(circle(1, point_1), line(rectangle))))));
 }
