@@ -19,9 +19,11 @@ enum Shape {
     DiagonalLineRightToLeft,
 }
 
-fn canvas_index_to_coords(i: u32, num: u32) -> Coordinate {
-    if i < num { Coordinate(i, 0) }
-    else { Coordinate(i % num, i / num) }
+impl Coordinate {
+    fn from_canvas_index(i: u32, canvas_size: &Dimension) -> Coordinate {
+        if i < canvas_size.0 { Coordinate(i, 0) }
+        else { Coordinate(i % canvas_size.0, i / canvas_size.0) }
+    }
 }
 
 fn write(coords: &Coordinate, chr: char,  num: u32) {
@@ -49,7 +51,7 @@ fn canvas(size: Dimension) -> HashMap<Coordinate, Shape> {
     let mut canvas_coords = HashMap::new();
 
     for i in 0..(size.0 * size.1) {
-        canvas_coords.insert(canvas_index_to_coords(i, size.0), Shape::Canvas);
+        canvas_coords.insert(Coordinate::from_canvas_index(i, &size), Shape::Canvas);
     }
 
     canvas_coords
