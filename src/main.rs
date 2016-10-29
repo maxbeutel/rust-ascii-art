@@ -6,9 +6,6 @@ struct Point(u32, u32);
 #[derive(PartialEq, PartialOrd, Debug)]
 struct Dimension(u32, u32);
 
-#[derive(PartialEq, PartialOrd, Debug)]
-struct Rectangle(Point, Point);
-
 #[derive(PartialEq, PartialOrd, Debug, Hash, Eq)]
 struct Coordinate(u32, u32);
 
@@ -92,11 +89,11 @@ fn circle(radius: u32, point: Point) -> HashMap<Coordinate, Shape> {
     coords
 }
 
-fn line_shape(rectangle: Rectangle) -> Shape {
-    let x0 = (rectangle.0).0;
-    let y0 = (rectangle.0).1;
-    let x1 = (rectangle.1).0;
-    let y1 = (rectangle.1).1;
+fn line_shape(start: Point, end: Point) -> Shape {
+    let x0 = start.0 as i32;
+    let y0 = start.1 as i32;
+    let x1 = end.0 as i32;
+    let y1 = end.1 as i32;
 
     if x0 != x1 && y0 > y1 { Shape::DiagonalLineLeftToRight }
     else if x0 != x1 && y0 < y1 { Shape::DiagonalLineRightToLeft }
@@ -104,11 +101,11 @@ fn line_shape(rectangle: Rectangle) -> Shape {
     else { Shape::VerticalLine }
 }
 
-fn line(rectangle: Rectangle) -> HashMap<Coordinate, Shape> {
-    let x0 = (rectangle.0).0 as i32;
-    let y0 = (rectangle.0).1 as i32;
-    let x1 = (rectangle.1).0 as i32;
-    let y1 = (rectangle.1).1 as i32;
+fn line(start: Point, end: Point) -> HashMap<Coordinate, Shape> {
+    let x0 = start.0 as i32;
+    let y0 = start.1 as i32;
+    let x1 = end.0 as i32;
+    let y1 = end.1 as i32;
 
     let dx = ((x1 - x0)).abs();
 
@@ -125,7 +122,7 @@ fn line(rectangle: Rectangle) -> HashMap<Coordinate, Shape> {
     let mut y0_m = y0;
 
     let mut coords = HashMap::new();
-    let line_shape = line_shape(rectangle);
+    let line_shape = line_shape(start, end);
 
     loop {
         coords.insert(Coordinate(x0_m as u32, y0_m as u32), line_shape);
@@ -178,7 +175,8 @@ fn main() {
     let point_1 = Point(2, 2);
     let point_2 = Point(3, 4);
     let point_3 = Point(7, 7);
-    let rectangle = Rectangle(Point(0, 0), Point(0, 9));
+    let line_start = Point(0, 0);
+    let line_end = Point(0, 9);
 
-    draw(num, combine(canvas(canvas_size), combine(circle(1, point_3), combine(circle(1, point_2), combine(circle(1, point_1), line(rectangle))))));
+    draw(num, combine(canvas(canvas_size), combine(circle(1, point_3), combine(circle(1, point_2), combine(circle(1, point_1), line(line_start, line_end))))));
 }
