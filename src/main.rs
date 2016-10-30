@@ -26,40 +26,31 @@ impl Coordinate {
     }
 }
 
-fn write(coords: &Coordinate, chr: char,  num: u32) {
-    if coords.0 == num - 1 { println!("{}", chr); }
-    else { print!("{} ", chr); }
-    // if coords.0 == num - 1 { println!("{} ({}/{})", chr, coords.0, coords.1); }
-    // else { print!("{} ({}/{}) ", chr, coords.0, coords.1); }
+impl Shape {
+    fn to_char(&self) -> char {
+        match *self {
+            Shape::Canvas => ' ',
+            Shape::Circle => 'o',
+            Shape::HorizontalLine => '-',
+            Shape::VerticalLine => '|',
+            Shape::DiagonalLineLeftToRight => '\\',
+            Shape::DiagonalLineRightToLeft => '/',
+        }
+    }
 }
 
 fn combine(a: HashMap<Coordinate, Shape>, b: HashMap<Coordinate, Shape>) -> HashMap<Coordinate, Shape> {
-    let mut combined = HashMap::new();
-
-    for (key, val) in a {
-        combined.insert(key, val);
-    }
-
-    for (key, val) in b {
-        combined.insert(key, val);
-    }
-
-    combined
+    a.into_iter().chain(b.into_iter()).collect()
 }
 
-fn canvas(size: Dimension) -> HashMap<Coordinate, Shape> {
-    let mut canvas_coords = HashMap::new();
-
-    for i in 0..(size.0 * size.1) {
-        canvas_coords.insert(Coordinate::from_canvas_index(i, &size), Shape::Canvas);
-    }
-
-    canvas_coords
+fn canvas(size: &Dimension) -> HashMap<Coordinate, Shape> {
+    (0..(size.0 * size.1))
+        .map(|i| { (Coordinate::from_canvas_index(i, &size), Shape::Canvas) })
+        .collect()
 }
 
 fn circle(radius: u32, point: Point) -> HashMap<Coordinate, Shape> {
-    let x0 = point.0;
-    let y0 = point.1;
+    let Point(x0, y0) = point;
 
     let mut x = radius;
     let mut y = 0;
@@ -92,18 +83,22 @@ fn circle(radius: u32, point: Point) -> HashMap<Coordinate, Shape> {
 }
 
 fn line_shape(start: Point, end: Point) -> Shape {
-    let x0 = start.0 as i32;
-    let y0 = start.1 as i32;
-    let x1 = end.0 as i32;
-    let y1 = end.1 as i32;
+    let Point(x0, y0) = start;
+    let Point(x1, y1) = end;
 
-    if x0 != x1 && y0 > y1 { Shape::DiagonalLineLeftToRight }
-    else if x0 != x1 && y0 < y1 { Shape::DiagonalLineRightToLeft }
-    else if y0 == y1 { Shape::HorizontalLine }
-    else { Shape::VerticalLine }
+    if y0 == y1 {
+        Shape::HorizontalLine
+    } else if x0 == x1 {
+        Shape::VerticalLine
+    } else if y0 > y1 {
+        Shape::DiagonalLineLeftToRight
+    } else {
+        Shape::DiagonalLineRightToLeft
+    }
 }
 
 fn line(start: Point, end: Point) -> HashMap<Coordinate, Shape> {
+    // how to make this nicer and use tuple deconstruction?
     let x0 = start.0 as i32;
     let y0 = start.1 as i32;
     let x1 = end.0 as i32;
@@ -149,25 +144,15 @@ fn line(start: Point, end: Point) -> HashMap<Coordinate, Shape> {
     coords
 }
 
-fn draw(num: u32, coords: HashMap<Coordinate, Shape>) {
-    let mut vec = Vec::new();
+fn draw(canvas_size: &Dimension, coords: HashMap<Coordinate, Shape>) {
+    let mut vec = coords.iter().collect::<Vec<_>>();
+    vec.sort_by_key(|&(coord, _)| (!coord.1, coord.0)); // ?
 
-    for (key, value) in &coords {
-        vec.push((key, value));
-    }
+    for (coords, shape) in vec {
+        let chr = shape.to_char();
 
-    vec.sort_by_key(|&(coord, _)| coord.0);
-    vec.sort_by_key(|&(coord, _)| (coord.1 as i32) * -1);
-
-    for (coord, shape) in vec {
-        match shape {
-            &Shape::Canvas => write(coord, ' ', num),
-            &Shape::Circle => write(coord, 'o', num),
-            &Shape::HorizontalLine => write(coord, '-', num),
-            &Shape::VerticalLine => write(coord, '|', num),
-            &Shape::DiagonalLineLeftToRight => write(coord, '\\', num),
-            &Shape::DiagonalLineRightToLeft => write(coord, '/', num),
-        }
+        if coords.0 == canvas_size.0 - 1 { println!("{}", chr); }
+        else { print!("{} ", chr); }
     }
 }
 
@@ -180,5 +165,5 @@ fn main() {
     let line_start = Point(0, 0);
     let line_end = Point(0, 9);
 
-    draw(num, combine(canvas(canvas_size), combine(circle(1, point_3), combine(circle(1, point_2), combine(circle(1, point_1), line(line_start, line_end))))));
+    draw(&canvas_size, combine(canvas(&canvas_size), combine(circle(1, point_3), combine(circle(1, point_2), combine(circle(1, point_1), line(line_start, line_end))))));
 }
