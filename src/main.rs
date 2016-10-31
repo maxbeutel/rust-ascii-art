@@ -49,8 +49,8 @@ fn canvas(size: &Dimension) -> HashMap<Coordinate, Shape> {
         .collect()
 }
 
-fn circle(radius: u32, point: Point) -> HashMap<Coordinate, Shape> {
-    let Point(x0, y0) = point;
+fn circle(radius: u32, point: &Point) -> HashMap<Coordinate, Shape> {
+    let &Point(x0, y0) = point;
 
     let mut x = radius;
     let mut y = 0;
@@ -82,9 +82,9 @@ fn circle(radius: u32, point: Point) -> HashMap<Coordinate, Shape> {
     coords
 }
 
-fn line_shape(start: Point, end: Point) -> Shape {
-    let Point(x0, y0) = start;
-    let Point(x1, y1) = end;
+fn line_shape(start: &Point, end: &Point) -> Shape {
+    let &Point(x0, y0) = start;
+    let &Point(x1, y1) = end;
 
     if y0 == y1 {
         Shape::HorizontalLine
@@ -97,7 +97,7 @@ fn line_shape(start: Point, end: Point) -> Shape {
     }
 }
 
-fn line(start: Point, end: Point) -> HashMap<Coordinate, Shape> {
+fn line(start: &Point, end: &Point) -> HashMap<Coordinate, Shape> {
     // how to make this nicer and use tuple deconstruction?
     let x0 = start.0 as i32;
     let y0 = start.1 as i32;
@@ -144,26 +144,41 @@ fn line(start: Point, end: Point) -> HashMap<Coordinate, Shape> {
     coords
 }
 
-fn draw(canvas_size: &Dimension, coords: HashMap<Coordinate, Shape>) {
+fn draw(canvas_size: &Dimension, write_fn: &Fn(&Coordinate, char, u32), coords: HashMap<Coordinate, Shape>) {
     let mut vec = coords.iter().collect::<Vec<_>>();
     vec.sort_by_key(|&(coord, _)| (!coord.1, coord.0)); // ?
 
     for (coords, shape) in vec {
         let chr = shape.to_char();
-
-        if coords.0 == canvas_size.0 - 1 { println!("{}", chr); }
-        else { print!("{} ", chr); }
+        write_fn(coords, chr, canvas_size.0);
     }
+}
+
+fn write(coords: &Coordinate, chr: char, line_length: u32) {
+    if coords.0 == line_length - 1 { println!("{}", chr); }
+    else { print!("{} ", chr); }
+}
+
+fn write_debug(coords: &Coordinate, chr: char, line_length: u32) {
+    if coords.0 == line_length - 1 { println!("{} ({:?})", chr, coords); }
+    else { print!("{} ({:?}) ", chr, coords); }
 }
 
 fn main() {
     let num = 10;
     let canvas_size = Dimension(num, num);
+
     let point_1 = Point(2, 2);
     let point_2 = Point(3, 4);
     let point_3 = Point(7, 7);
+
     let line_start = Point(0, 0);
     let line_end = Point(0, 9);
 
-    draw(&canvas_size, combine(canvas(&canvas_size), combine(circle(1, point_3), combine(circle(1, point_2), combine(circle(1, point_1), line(line_start, line_end))))));
+    let tmp1 = combine(circle(1, &point_1), line(&line_start, &line_end));
+    let tmp2 = combine(circle(1, &point_2), tmp1);
+    let tmp3 = combine(circle(1, &point_3), tmp2);
+    let tmp4 = combine(canvas(&canvas_size), tmp3);
+
+    draw(&canvas_size, &write, tmp4);
 }
