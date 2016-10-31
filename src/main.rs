@@ -11,6 +11,8 @@ struct Coordinate(u32, u32);
 
 type ShapeCoordinates = HashMap<Coordinate, Shape>;
 
+struct Canvas(Dimension, ShapeCoordinates);
+
 #[derive(Clone, Copy, Debug)]
 enum Shape {
     Canvas,
@@ -22,6 +24,7 @@ enum Shape {
 }
 
 impl Coordinate {
+    // @FIXME make this private and move to canvas???
     fn from_canvas_index(i: u32, canvas_size: &Dimension) -> Coordinate {
         if i < canvas_size.0 { Coordinate(i, 0) }
         else { Coordinate(i % canvas_size.0, i / canvas_size.0) }
@@ -146,13 +149,16 @@ fn line(start: &Point, end: &Point) -> ShapeCoordinates {
     coords
 }
 
-fn draw(canvas_size: &Dimension, write_fn: &Fn(&Coordinate, char, u32), coords: ShapeCoordinates) {
-    let mut vec = coords.iter().collect::<Vec<_>>();
+fn draw(canvas: &Canvas, write_fn: &Fn(&Coordinate, char, u32)) {
+    // @TODO make this work, borrow error
+    // let &Canvas(canvas_dimension, coords) = canvas;
+
+    let mut vec = canvas.1.iter().collect::<Vec<_>>();
     vec.sort_by_key(|&(coord, _)| (!coord.1, coord.0)); // ?
 
     for (coords, shape) in vec {
         let chr = shape.to_char();
-        write_fn(coords, chr, canvas_size.0);
+        write_fn(coords, chr, (canvas.0).0);
     }
 }
 
@@ -166,9 +172,15 @@ fn write_debug(coords: &Coordinate, chr: char, line_length: u32) {
     else { print!("{} ({:?}) ", chr, coords); }
 }
 
+fn plot(canvas_dimension: Dimension, coords: ShapeCoordinates) -> Canvas {
+    let all_coords_on_canvas = canvas(&canvas_dimension);
+    let plotted_coords = combine(all_coords_on_canvas, coords);
+    Canvas(canvas_dimension, plotted_coords)
+}
+
 fn main() {
     let num = 10;
-    let canvas_size = Dimension(num, num);
+    let canvas_dimension = Dimension(num, num);
 
     let point_1 = Point(2, 2);
     let point_2 = Point(3, 4);
@@ -177,10 +189,11 @@ fn main() {
     let line_start = Point(0, 0);
     let line_end = Point(0, 9);
 
+    // FIXME: all shape functions return hashmap of coords, except plot()
     let mut coords = combine(circle(1, &point_1), line(&line_start, &line_end));
     coords = combine(circle(1, &point_2), coords);
     coords = combine(circle(1, &point_3), coords);
-    coords = combine(canvas(&canvas_size), coords);
 
-    draw(&canvas_size, &write, coords);
+    let canvas = plot(canvas_dimension, coords);
+    draw(&canvas, &write);
 }
