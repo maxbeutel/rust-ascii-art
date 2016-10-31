@@ -9,6 +9,8 @@ struct Dimension(u32, u32);
 #[derive(PartialEq, PartialOrd, Debug, Hash, Eq)]
 struct Coordinate(u32, u32);
 
+type ShapeCoordinates = HashMap<Coordinate, Shape>;
+
 #[derive(Clone, Copy, Debug)]
 enum Shape {
     Canvas,
@@ -39,17 +41,17 @@ impl Shape {
     }
 }
 
-fn combine(a: HashMap<Coordinate, Shape>, b: HashMap<Coordinate, Shape>) -> HashMap<Coordinate, Shape> {
+fn combine(a: ShapeCoordinates, b: ShapeCoordinates) -> ShapeCoordinates {
     a.into_iter().chain(b.into_iter()).collect()
 }
 
-fn canvas(size: &Dimension) -> HashMap<Coordinate, Shape> {
+fn canvas(size: &Dimension) -> ShapeCoordinates {
     (0..(size.0 * size.1))
         .map(|i| { (Coordinate::from_canvas_index(i, &size), Shape::Canvas) })
         .collect()
 }
 
-fn circle(radius: u32, point: &Point) -> HashMap<Coordinate, Shape> {
+fn circle(radius: u32, point: &Point) -> ShapeCoordinates {
     let &Point(x0, y0) = point;
 
     let mut x = radius;
@@ -97,7 +99,7 @@ fn line_shape(start: &Point, end: &Point) -> Shape {
     }
 }
 
-fn line(start: &Point, end: &Point) -> HashMap<Coordinate, Shape> {
+fn line(start: &Point, end: &Point) -> ShapeCoordinates {
     // how to make this nicer and use tuple deconstruction?
     let x0 = start.0 as i32;
     let y0 = start.1 as i32;
@@ -144,7 +146,7 @@ fn line(start: &Point, end: &Point) -> HashMap<Coordinate, Shape> {
     coords
 }
 
-fn draw(canvas_size: &Dimension, write_fn: &Fn(&Coordinate, char, u32), coords: HashMap<Coordinate, Shape>) {
+fn draw(canvas_size: &Dimension, write_fn: &Fn(&Coordinate, char, u32), coords: ShapeCoordinates) {
     let mut vec = coords.iter().collect::<Vec<_>>();
     vec.sort_by_key(|&(coord, _)| (!coord.1, coord.0)); // ?
 
