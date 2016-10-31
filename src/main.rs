@@ -175,10 +175,10 @@ fn main() {
     let line_start = Point(0, 0);
     let line_end = Point(0, 9);
 
-    let tmp1 = combine(circle(1, &point_1), line(&line_start, &line_end));
-    let tmp2 = combine(circle(1, &point_2), tmp1);
-    let tmp3 = combine(circle(1, &point_3), tmp2);
-    let tmp4 = combine(canvas(&canvas_size), tmp3);
+    let mut coords = combine(circle(1, &point_1), line(&line_start, &line_end));
+    coords = combine(circle(1, &point_2), coords);
+    coords = combine(circle(1, &point_3), coords);
+    coords = combine(canvas(&canvas_size), coords);
 
-    draw(&canvas_size, &write, tmp4);
+    draw(&canvas_size, &write, coords);
 }
