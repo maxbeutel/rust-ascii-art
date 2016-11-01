@@ -6,11 +6,12 @@ struct Point(u32, u32);
 #[derive(PartialEq, PartialOrd, Debug)]
 struct Dimension(u32, u32);
 
-#[derive(PartialEq, PartialOrd, Debug, Hash, Eq)]
+#[derive(PartialEq, PartialOrd, Debug, Hash, Eq, Clone)]
 struct Coordinate(u32, u32);
 
 type ShapeCoordinates = HashMap<Coordinate, Shape>;
 
+#[derive(Debug)]
 struct Canvas(Dimension, ShapeCoordinates);
 
 #[derive(Clone, Copy, Debug)]
@@ -44,11 +45,49 @@ impl Shape {
     }
 }
 
-fn combine(a: ShapeCoordinates, b: ShapeCoordinates) -> ShapeCoordinates {
-    a.into_iter().chain(b.into_iter()).collect()
+fn canvas_dimensions(a: &ShapeCoordinates, b: &ShapeCoordinates) -> Dimension {
+    let combined = a.into_iter()
+        .chain(b.into_iter())
+        .map(|(c, _)| c)
+        .collect::<Vec<(&Coordinate)>>();
+
+    //println!("combined: {:?}", combined);
+
+    let coord_max_x = combined.iter().max_by_key(|&coords| coords.0).unwrap();
+    let coord_max_y = combined.iter().max_by_key(|&coords| coords.1).unwrap();
+
+    Dimension(coord_max_x.0 + 1, coord_max_y.1 + 1)
 }
 
+fn combine(a: ShapeCoordinates, b: ShapeCoordinates) -> Canvas {
+    let canvas_dimension = canvas_dimensions(&a, &b);
+    let canvas = canvas(&canvas_dimension);
+
+    // let coords = a.into_iter().chain(b.into_iter()).chain(canvas.into_iter()).collect();
+
+    let coords = canvas.into_iter().chain(a.into_iter()).chain(b.into_iter()).collect();
+    //println!("dim {:?}", canvas_dimension);
+    Canvas(canvas_dimension, coords)
+}
+
+// let a_max_coord_by_x = (a.iter().max_by_key(|&(coords, _)| coords.0).unwrap().0).0;
+// let a_max_coord_by_y = (a.iter().max_by_key(|&(coords, _)| coords.1).unwrap().0).1;
+
+// let b_max_coord_by_x = (b.iter().max_by_key(|&(coords, _)| coords.0).unwrap().0).0;
+// let b_max_coord_by_y = (b.iter().max_by_key(|&(coords, _)| coords.1).unwrap().0).1;
+
+// println!("a_max = {:?}", (a_max_coord_by_x, a_max_coord_by_y));
+// println!("b_max = {:?}", (b_max_coord_by_x, b_max_coord_by_y));
+
+
+// let canvas_dimension_x = [a_max_coord_by_x, b_max_coord_by_x].into_iter().max();
+// let canvas_dimension_y = 0;
+
+//    a.into_iter().chain(b.into_iter()).collect()
+
 fn canvas(size: &Dimension) -> ShapeCoordinates {
+    // println!("creating {} coords", size.0 * size.1);
+
     (0..(size.0 * size.1))
         .map(|i| { (Coordinate::from_canvas_index(i, &size), Shape::Canvas) })
         .collect()
@@ -154,7 +193,9 @@ fn draw(canvas: &Canvas, write_fn: &Fn(&Coordinate, char, u32)) {
     // let &Canvas(canvas_dimension, coords) = canvas;
 
     let mut vec = canvas.1.iter().collect::<Vec<_>>();
-    vec.sort_by_key(|&(coord, _)| (!coord.1, coord.0)); // ?
+    vec.sort_by_key(|&(coords, _)| (!coords.1, coords.0)); // ?
+
+    //println!("break at x = {}", (canvas.0).0);
 
     for (coords, shape) in vec {
         let chr = shape.to_char();
@@ -168,19 +209,19 @@ fn write(coords: &Coordinate, chr: char, line_length: u32) {
 }
 
 fn write_debug(coords: &Coordinate, chr: char, line_length: u32) {
-    if coords.0 == line_length - 1 { println!("{} ({:?})", chr, coords); }
-    else { print!("{} ({:?}) ", chr, coords); }
+    if coords.0 == line_length - 1 { println!("{} ({}/{})", chr, coords.0, coords.1); }
+    else { print!("{} ({}/{}) ", chr, coords.0, coords.1); }
 }
 
-fn plot(canvas_dimension: Dimension, coords: ShapeCoordinates) -> Canvas {
-    let all_coords_on_canvas = canvas(&canvas_dimension);
-    let plotted_coords = combine(all_coords_on_canvas, coords);
-    Canvas(canvas_dimension, plotted_coords)
-}
+// fn plot(canvas_dimension: Dimension, coords: ShapeCoordinates) -> Canvas {
+//     let all_coords_on_canvas = canvas(&canvas_dimension);
+//     let plotted_coords = combine(all_coords_on_canvas, coords);
+//     Canvas(canvas_dimension, plotted_coords)
+// }
 
 fn main() {
     let num = 10;
-    let canvas_dimension = Dimension(num, num);
+    let canvas_dimension = Dimension(3, 9);
 
     let point_1 = Point(2, 2);
     let point_2 = Point(3, 4);
@@ -189,11 +230,10 @@ fn main() {
     let line_start = Point(0, 0);
     let line_end = Point(0, 9);
 
-    // FIXME: all shape functions return hashmap of coords, except plot()
-    let mut coords = combine(circle(1, &point_1), line(&line_start, &line_end));
-    coords = combine(circle(1, &point_2), coords);
-    coords = combine(circle(1, &point_3), coords);
+    let mut canvas = combine(circle(1, &point_1), line(&line_start, &line_end));
+    canvas = combine(circle(1, &point_2), canvas);
+    // coords = ;
+    // coords = ;
 
-    let canvas = plot(canvas_dimension, coords);
-    draw(&canvas, &write);
+    draw(&canvas , &write);
 }
