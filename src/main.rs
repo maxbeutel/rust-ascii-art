@@ -1,12 +1,14 @@
+use std::collections::HashSet;
 use std::collections::HashMap;
 
-#[derive(PartialEq, PartialOrd, Debug)]
+// -- simple types --
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 struct Point(u32, u32);
 
-#[derive(PartialEq, PartialOrd, Debug)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 struct Dimension(u32, u32);
 
-#[derive(PartialEq, PartialOrd, Debug, Hash, Eq, Clone)]
+#[derive(PartialEq, PartialOrd, Debug, Hash, Eq, Copy, Clone)]
 struct Coordinate(u32, u32);
 
 impl Coordinate {
@@ -17,9 +19,9 @@ impl Coordinate {
     }
 }
 
-// only type alias for now, otherwise I need to re-implement all the functions of the HashMap that I use
+// only type alias for now, otherwise I need to re-implement all the functions of the HashSet that I use
 // should be wrapper struct though
-type ShapeCoordinates = HashMap<Coordinate, Shape>; // @FIXME this can soon be a HashSet, because the types know their Shape
+type ShapeCoordinates = HashSet<Coordinate>;
 
 trait Plottable {
     fn shape(&self) -> Shape;
@@ -27,10 +29,44 @@ trait Plottable {
     fn coords(&self) -> &ShapeCoordinates;
 }
 
-#[derive(Debug)]
-struct Canvas(Dimension, ShapeCoordinates);
+// Canvas
+struct Canvas<'a>(Dimension, ShapeCoordinates, Vec<Box<Plottable + 'a>>); // Box otherwise traits don't have fixed size
 
-impl Plottable for Canvas {
+impl<'a> Canvas<'a> {
+    fn empty(dimension: Dimension) -> Canvas<'a> {
+        Canvas(dimension, HashSet::new(), Vec::new())
+    }
+
+    fn calculate_max_dimensions(a: &ShapeCoordinates, b: &ShapeCoordinates) -> Dimension {
+        let combined = a.into_iter()
+            .chain(b.into_iter())
+            .collect::<Vec<(&Coordinate)>>();
+
+        // this is still quite ugly actually
+        let coord_max_x = combined.iter().max_by_key(|&coords| coords.0).unwrap();
+        let coord_max_y = combined.iter().max_by_key(|&coords| coords.1).unwrap();
+
+        Dimension(coord_max_x.0 + 1, coord_max_y.1 + 1)
+    }
+
+    fn calc_coords(dimension: Dimension) -> ShapeCoordinates {
+        (0..(dimension.0 * dimension.1))
+            .map(|i| { (Coordinate::from_canvas_index(i, &dimension)) })
+            .collect()
+    }
+
+    fn combine<T: Plottable + 'a, U: Plottable + 'a>(shape_a: T, shape_b: U) -> Canvas<'a> {
+        let canvas_dimension = Canvas::calculate_max_dimensions(shape_a.coords(), shape_b.coords());
+
+        let mut vec: Vec<Box<Plottable>> = Vec::new();
+        vec.push(Box::new(shape_a));
+        vec.push(Box::new(shape_b));
+
+        Canvas(canvas_dimension, Canvas::calc_coords(canvas_dimension), vec)
+    }
+}
+
+impl<'a> Plottable for Canvas<'a> {
     fn shape(&self) -> Shape {
         Shape::Canvas
     }
@@ -67,14 +103,14 @@ impl Plottable for Line {
 }
 
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Shape {
     Canvas,
     Circle,
     HorizontalLine,
-    VerticalLine,
-    DiagonalLineLeftToRight,
-    DiagonalLineRightToLeft,
+    // VerticalLine,
+    // DiagonalLineLeftToRight,
+    // DiagonalLineRightToLeft,
 }
 
 impl Shape {
@@ -83,45 +119,50 @@ impl Shape {
             Shape::Canvas => ' ',
             Shape::Circle => 'o',
             Shape::HorizontalLine => '-',
-            Shape::VerticalLine => '|',
-            Shape::DiagonalLineLeftToRight => '\\',
-            Shape::DiagonalLineRightToLeft => '/',
+            // Shape::VerticalLine => '|',
+            // Shape::DiagonalLineLeftToRight => '\\',
+            // Shape::DiagonalLineRightToLeft => '/',
         }
     }
 }
 
 // -- functions --
-fn canvas_dimensions(a: &ShapeCoordinates, b: &ShapeCoordinates) -> Dimension {
-    let combined = a.into_iter()
-        .chain(b.into_iter())
-        .map(|(c, _)| c)
-        .collect::<Vec<(&Coordinate)>>();
+// fn canvas_dimensions(a: &ShapeCoordinates, b: &ShapeCoordinates) -> Dimension {
+//     let combined = a.into_iter()
+//         .chain(b.into_iter())
+//         .map(|(c, _)| c)
+//         .collect::<Vec<(&Coordinate)>>();
 
-    let coord_max_x = combined.iter().max_by_key(|&coords| coords.0).unwrap();
-    let coord_max_y = combined.iter().max_by_key(|&coords| coords.1).unwrap();
+//     let coord_max_x = combined.iter().max_by_key(|&coords| coords.0).unwrap();
+//     let coord_max_y = combined.iter().max_by_key(|&coords| coords.1).unwrap();
 
-    Dimension(coord_max_x.0 + 1, coord_max_y.1 + 1)
-}
+//     Dimension(coord_max_x.0 + 1, coord_max_y.1 + 1)
+// }
 
-fn plot_on_canvas<T: Plottable, U: Plottable>(a: &T, b: &U) -> Canvas {
-    let canvas_dimension = canvas_dimensions(a.coords(), b.coords());
-    let canvas = new_canvas(&canvas_dimension);
+// fn plot_on_canvas<'a, T: Plottable, U: Plottable>(a: &'a T, b: &'a U) -> Canvas<'a> {
+//     let canvas_dimension = canvas_dimensions(a.coords(), b.coords());
+//     let canvas = new_canvas(&canvas_dimension);
 
-    // @FIXME: this is quite ugly, bu the new hashmap needs to have ownership of the values from the old one
-    let coords = canvas.iter().map(|a| (a.0.clone(), a.1.clone()))
-        .chain(a.coords().iter().map(|a| (a.0.clone(), a.1.clone())))
-        .chain(b.coords().iter().map(|a| (a.0.clone(), a.1.clone())))
-        .collect();
+//     // @FIXME: this is quite ugly, bu the new hashmap needs to have ownership of the values from the old one
+//     let coords = canvas.iter().map(|a| (a.0.clone(), a.1.clone()))
+//         .chain(a.coords().iter().map(|a| (a.0.clone(), a.1.clone())))
+//         .chain(b.coords().iter().map(|a| (a.0.clone(), a.1.clone())))
+//         .collect();
 
-    Canvas(canvas_dimension, coords)
-}
+//     let mut vec: Vec<&Plottable> = Vec::new();
+//     vec.push(a);
+//     vec.push(b);
 
-fn new_canvas(size: &Dimension) -> ShapeCoordinates {
-    (0..(size.0 * size.1))
-        .map(|i| { (Coordinate::from_canvas_index(i, &size), Shape::Canvas) })
-        .collect()
-}
+//     Canvas(canvas_dimension, coords, vec)
+// }
 
+// fn new_canvas(size: &Dimension) -> ShapeCoordinates {
+//     (0..(size.0 * size.1))
+//         .map(|i| { (Coordinate::from_canvas_index(i, &size), Shape::Canvas) })
+//         .collect()
+// }
+
+// -- shapes --
 fn circle(radius: u32, point: &Point) -> Circle {
     let &Point(x0, y0) = point;
 
@@ -130,17 +171,17 @@ fn circle(radius: u32, point: &Point) -> Circle {
 
     let mut err: i32 = 0;
 
-    let mut coords = HashMap::new();
+    let mut coords = HashSet::new();
 
     while x >= y {
-        coords.insert(Coordinate(x0 + x, y0 + y), Shape::Circle);
-        coords.insert(Coordinate(x0 + y, y0 + x), Shape::Circle);
-        coords.insert(Coordinate(x0 - y, y0 + x), Shape::Circle);
-        coords.insert(Coordinate(x0 - x, y0 + y), Shape::Circle);
-        coords.insert(Coordinate(x0 - x, y0 - y), Shape::Circle);
-        coords.insert(Coordinate(x0 - y, y0 - x), Shape::Circle);
-        coords.insert(Coordinate(x0 + y, y0 - x), Shape::Circle);
-        coords.insert(Coordinate(x0 + x, y0 - y), Shape::Circle);
+        coords.insert(Coordinate(x0 + x, y0 + y));
+        coords.insert(Coordinate(x0 + y, y0 + x));
+        coords.insert(Coordinate(x0 - y, y0 + x));
+        coords.insert(Coordinate(x0 - x, y0 + y));
+        coords.insert(Coordinate(x0 - x, y0 - y));
+        coords.insert(Coordinate(x0 - y, y0 - x));
+        coords.insert(Coordinate(x0 + y, y0 - x));
+        coords.insert(Coordinate(x0 + x, y0 - y));
 
         y += 1;
         err += 1 + 2 * y as i32;
@@ -155,22 +196,23 @@ fn circle(radius: u32, point: &Point) -> Circle {
     Circle(coords)
 }
 
-fn line_shape(start: &Point, end: &Point) -> Shape {
-    let &Point(x0, y0) = start;
-    let &Point(x1, y1) = end;
-
-    if y0 == y1 {
-        Shape::HorizontalLine
-    } else if x0 == x1 {
-        Shape::VerticalLine
-    } else if y0 > y1 {
-        Shape::DiagonalLineLeftToRight
-    } else {
-        Shape::DiagonalLineRightToLeft
-    }
-}
-
 fn line(start: &Point, end: &Point) -> Line {
+    fn line_shape(start: &Point, end: &Point) -> Shape {
+        Shape::HorizontalLine
+        // let &Point(x0, y0) = start;
+        // let &Point(x1, y1) = end;
+
+        // if y0 == y1 {
+        //     Shape::HorizontalLine
+        // } else if x0 == x1 {
+        //     Shape::VerticalLine
+        // } else if y0 > y1 {
+        //     Shape::DiagonalLineLeftToRight
+        // } else {
+        //     Shape::DiagonalLineRightToLeft
+        // }
+    }
+
     // how to make this nicer and use tuple deconstruction?
     let x0 = start.0 as i32;
     let y0 = start.1 as i32;
@@ -191,11 +233,11 @@ fn line(start: &Point, end: &Point) -> Line {
     let mut x0_m = x0;
     let mut y0_m = y0;
 
-    let mut coords = HashMap::new();
+    let mut coords = HashSet::new();
     let line_shape = line_shape(start, end);
 
     loop {
-        coords.insert(Coordinate(x0_m as u32, y0_m as u32), line_shape);
+        coords.insert(Coordinate(x0_m as u32, y0_m as u32));
 
         if x0_m == x1 as i32 && y0_m == y1 as i32 {
             break;
@@ -218,15 +260,24 @@ fn line(start: &Point, end: &Point) -> Line {
 }
 
 fn draw(canvas: &Canvas, write_fn: &Fn(&Coordinate, char, u32)) {
-    // @TODO make this work, borrow error
-    // let &Canvas(canvas_dimension, coords) = canvas;
+    let mut canvas_coords = canvas.coords().iter().map(|a| (a.0, a.1, canvas.shape()));
+    let contained_shape_coords = canvas.2.iter().flat_map(|a| {
+        let shape = a.shape();
+        a.coords().iter().map(move |b| (b.0, b.1, shape))
+    });
 
-    let mut vec = canvas.1.iter().collect::<Vec<_>>();
-    vec.sort_by_key(|&(coords, _)| (!coords.1, coords.0)); // ?
+    let mut vec = canvas_coords.chain(contained_shape_coords).collect::<Vec<_>>();
+    let mut drawPoints = &mut HashMap::new();
 
-    //println!("break at x = {}", (canvas.0).0);
+    for (x, y, shape) in vec {
+        println!("{} {} {:?}", x, y, shape);
+        drawPoints.insert(Coordinate(x, y), shape);
+    }
 
-    for (coords, shape) in vec {
+    let mut x = drawPoints.iter().collect::<Vec<_>>();
+    x.sort_by_key(|&(coords, _)| (!coords.1, coords.0));
+
+    for (coords, shape) in x {
         let chr = shape.to_char();
         write_fn(coords, chr, (canvas.0).0);
     }
@@ -242,6 +293,7 @@ fn write_debug(coords: &Coordinate, chr: char, line_length: u32) {
     else { print!("{} ({}/{}) ", chr, coords.0, coords.1); }
 }
 
+// -- main --
 fn main() {
     let canvas_dimension = Dimension(10, 10);
 
@@ -250,11 +302,15 @@ fn main() {
     let point_3 = Point(7, 7);
 
     let line_start = Point(0, 0);
-    let line_end = Point(0, 9);
+    let line_end = Point(9, 0);
 
-    let mut canvas = plot_on_canvas(&circle(1, &point_1), &line(&line_start, &line_end));
-    canvas = plot_on_canvas(&canvas, &circle(1, &point_2));
-    canvas = plot_on_canvas(&canvas, &circle(1, &point_3));
+    let mut canvas = Canvas::empty(canvas_dimension);
+    canvas = Canvas::combine(canvas, line(&line_start, &line_end));
+    canvas = Canvas::combine(canvas, circle(1, &point_1));
 
-    draw(&canvas , &write);
+    // let mut canvas = plot_on_canvas(&circle(1, &point_1), &line(&line_start, &line_end));
+    // canvas = plot_on_canvas(&canvas, &circle(1, &point_2));
+    // canvas = plot_on_canvas(&canvas, &circle(1, &point_3));
+
+    draw(&canvas, &write_debug);
 }
