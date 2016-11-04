@@ -98,12 +98,6 @@ impl Plottable for Circle {
     }
 }
 
-
-
-
-
-
-
 #[derive(Debug)]
 struct Canvas(Dimensions, Vec<PlottedCoords>);
 
@@ -114,7 +108,7 @@ fn get_max_coord_from_coords(coords: std::slice::Iter<Coords>, pluck_fn: &Fn(&Co
 
 fn get_max_dimensions_from_coords(coords: std::slice::Iter<Coords>) -> Dimensions {
     let max_x = get_max_coord_from_coords(coords.clone(), &|coords| coords.0);
-    let max_y = get_max_coord_from_coords(coords.clone(), &|coords| coords.0);
+    let max_y = get_max_coord_from_coords(coords.clone(), &|coords| coords.1);
 
     Dimensions(max_x + 1, max_y + 1)
 }
@@ -196,6 +190,48 @@ fn test_combine_expands_dimensions_to_fit_largest_object_circle() {
     assert_eq!((lines_combined.0).1, 3);
 
     assert_eq!(lines_combined.1.len(), 2);
+}
+
+#[test]
+fn test_plot_merged_object() {
+    // diagonal line, left bottom to top right
+    let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
+    let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
+
+    // horizontal line, bottom left to bottom right
+    let line_2_coords = [Coords(0, 0), Coords(1, 0), Coords(2, 0)];
+    let line_2 = Line(Dimensions(3, 1),  line_2_coords.to_vec());
+
+    // vertical line, bottom left to top left
+    let line_3_coords = [Coords(0, 0), Coords(0, 1), Coords(0, 2), Coords(0, 3)];
+    let line_3 = Line(Dimensions(1, 4),  line_3_coords.to_vec());
+
+    // combined object is supposed to be large enough to contain 2 lines
+    let lines_combined_1 = combine(Box::new(line_1), Box::new(line_2));
+    let lines_combined_2 = combine(Box::new(lines_combined_1), Box::new(line_3));
+
+    let canvas = plot(Box::new(lines_combined_2));
+
+    assert_eq!((canvas.0).0, 3);
+    assert_eq!((canvas.0).1, 4);
+
+    assert_eq!((canvas.1).len(), 12);
+
+    assert_eq!(canvas.1[0], PlottedCoords(0, 3, Representation::Line));
+    assert_eq!(canvas.1[1], PlottedCoords(1, 3, Representation::Canvas));
+    assert_eq!(canvas.1[2], PlottedCoords(2, 3, Representation::Canvas));
+
+    assert_eq!(canvas.1[3], PlottedCoords(0, 2, Representation::Line));
+    assert_eq!(canvas.1[4], PlottedCoords(1, 2, Representation::Canvas));
+    assert_eq!(canvas.1[5], PlottedCoords(2, 2, Representation::Line));
+
+    assert_eq!(canvas.1[6], PlottedCoords(0, 1, Representation::Line));
+    assert_eq!(canvas.1[7], PlottedCoords(1, 1, Representation::Line));
+    assert_eq!(canvas.1[8], PlottedCoords(2, 1, Representation::Canvas));
+
+    assert_eq!(canvas.1[9], PlottedCoords(0, 0, Representation::Line));
+    assert_eq!(canvas.1[10], PlottedCoords(1, 0, Representation::Line));
+    assert_eq!(canvas.1[11], PlottedCoords(2, 0, Representation::Line));
 }
 
 #[test]
