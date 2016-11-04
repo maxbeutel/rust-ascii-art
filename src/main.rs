@@ -8,6 +8,7 @@
 enum Representation {
     Canvas,
     Line,
+    Circle,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -19,11 +20,78 @@ struct PlottedCoords(u32, u32, Representation);
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Dimensions(u32, u32);
 
+
+// -- Plottable objects --
+trait Plottable {
+    fn get_dimensions(&self) -> Dimensions;
+
+    fn get_coords(&self) -> Vec<Coords>;
+
+    fn get_representation(&self) -> Representation;
+}
+
+struct CombinedObject(Dimensions, Vec<Box<Plottable>>);
+
+impl CombinedObject {
+    fn get_dimensions(&self) -> Dimensions {
+        self.0
+    }
+
+    fn get_representation_at(&self, coords: Coords) -> Option<Representation> {
+        for contained_plottable in self.1.iter() {
+            let contained_coords = contained_plottable.get_coords();
+            let result = contained_coords.iter().find(|a| **a == coords);
+
+            match result {
+                Some(_) => { return Some(contained_plottable.get_representation())},
+                None => {},
+            };
+        }
+
+        None
+    }
+}
+
+
 #[derive(Debug)]
 struct Line(Dimensions, Vec<Coords>);
 
+impl Plottable for Line {
+    fn get_dimensions(&self) -> Dimensions {
+        self.0
+    }
+
+    fn get_coords(&self) -> Vec<Coords> {
+        self.1.clone()
+    }
+
+    fn get_representation(&self) -> Representation {
+        Representation::Line
+    }
+}
+
 #[derive(Debug)]
-struct CombinedObject(Dimensions, Vec<Line>, Vec<Coords>);
+struct Circle(Dimensions, Vec<Coords>);
+
+impl Plottable for Circle {
+    fn get_dimensions(&self) -> Dimensions {
+        self.0
+    }
+
+    fn get_coords(&self) -> Vec<Coords> {
+        self.1.clone()
+    }
+
+    fn get_representation(&self) -> Representation {
+        Representation::Circle
+    }
+}
+
+
+
+
+
+
 
 #[derive(Debug)]
 struct Canvas(Dimensions, Vec<PlottedCoords>);
@@ -41,17 +109,17 @@ fn get_max_dimensions_from_coords(coords: std::slice::Iter<Coords>) -> Dimension
 }
 
 // -- functions --
-fn combine(a: Line, b: Line) -> CombinedObject {
-    let mut contained_objects = Vec::new();
+fn combine<T: Plottable + 'static, U: Plottable + 'static>(a: Box<T>, b: Box<U>) -> CombinedObject {
+    let mut contained_objects: Vec<Box<Plottable>> = Vec::new();
     contained_objects.push(a);
     contained_objects.push(b);
 
     let mut contained_coords = Vec::new();
-    contained_coords.extend(contained_objects[0].1.iter());
-    contained_coords.extend(contained_objects[1].1.iter());
+    contained_coords.extend(contained_objects[0].get_coords().iter());
+    contained_coords.extend(contained_objects[1].get_coords().iter());
 
     let dimensions = get_max_dimensions_from_coords(contained_coords.iter());
-    CombinedObject(dimensions, contained_objects, contained_coords)
+    CombinedObject(dimensions, contained_objects)
 }
 
 fn calc_coords_from_dimensions(dimensions: Dimensions) -> Vec<Coords> {
@@ -66,12 +134,14 @@ fn calc_coords_from_dimensions(dimensions: Dimensions) -> Vec<Coords> {
 }
 
 fn plot(a: CombinedObject) -> Canvas {
-    let mut canvas_coords = calc_coords_from_dimensions(a.0).iter().map(|fill_coords| {
-        match a.2.iter().find(|combined_coords| **combined_coords == *fill_coords) {
-            Some(found_combined_coords) => PlottedCoords(found_combined_coords.0, found_combined_coords.1, Representation::Line),
-            None => PlottedCoords(fill_coords.0, fill_coords.1, Representation::Canvas),
-        }
-    }).collect::<Vec<_>>();
+    let mut canvas_coords = calc_coords_from_dimensions(a.get_dimensions())
+        .iter()
+        .map(|fill_coords| {
+            match a.get_representation_at(*fill_coords) {
+                Some(representation) => PlottedCoords(fill_coords.0, fill_coords.1, representation),
+                None => PlottedCoords(fill_coords.0, fill_coords.1, Representation::Canvas),
+            }
+        }).collect::<Vec<_>>();
 
     canvas_coords.sort_by_key(|&PlottedCoords(x, y, _)| (!y, x));
 
@@ -80,7 +150,7 @@ fn plot(a: CombinedObject) -> Canvas {
 
 // -- tests --
 #[test]
-fn test_combine_expands_dimensions_to_fit_largest_object() {
+fn test_combine_expands_dimensions_to_fit_largest_object_line() {
     // diagonal line, left bottom to top right
     let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
     let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
@@ -90,7 +160,7 @@ fn test_combine_expands_dimensions_to_fit_largest_object() {
     let line_2 = Line(Dimensions(3, 1),  line_2_coords.to_vec());
 
     // combined object is supposed to be large enough to contain 2 lines
-    let lines_combined = combine(line_1, line_2);
+    let lines_combined = combine(Box::new(line_1), Box::new(line_2));
 
     assert_eq!((lines_combined.0).0, 3);
     assert_eq!((lines_combined.0).1, 3);
@@ -99,7 +169,26 @@ fn test_combine_expands_dimensions_to_fit_largest_object() {
 }
 
 #[test]
-fn test_plot() {
+fn test_combine_expands_dimensions_to_fit_largest_object_circle() {
+    // diagonal line, left bottom to top right
+    let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
+    let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
+
+    // circle with radius 1
+    let circle_1_coords = [Coords(1, 2), Coords(0, 1), Coords(1, 0), Coords(2, 1)];
+    let circle_1 = Circle(Dimensions(3, 3),  circle_1_coords.to_vec());
+
+    // combined object is supposed to be large enough to contain 2 lines
+    let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
+
+    assert_eq!((lines_combined.0).0, 3);
+    assert_eq!((lines_combined.0).1, 3);
+
+    assert_eq!(lines_combined.1.len(), 2);
+}
+
+#[test]
+fn test_plot_line() {
     // diagonal line, left bottom to top right
     let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
     let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
@@ -109,7 +198,7 @@ fn test_plot() {
     let line_2 = Line(Dimensions(3, 1),  line_2_coords.to_vec());
 
     // combined object is supposed to be large enough to contain 2 lines
-    let lines_combined = combine(line_1, line_2);
+    let lines_combined = combine(Box::new(line_1), Box::new(line_2));
     let canvas = plot(lines_combined);
 
     assert_eq!((canvas.0).0, 3);
@@ -128,6 +217,38 @@ fn test_plot() {
     assert_eq!(canvas.1[6], PlottedCoords(0, 0, Representation::Line));
     assert_eq!(canvas.1[7], PlottedCoords(1, 0, Representation::Line));
     assert_eq!(canvas.1[8], PlottedCoords(2, 0, Representation::Line));
+}
+
+#[test]
+fn test_plot_circle() {
+    // diagonal line, left bottom to top right
+    let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
+    let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
+
+    // circle with radius 1
+    let circle_1_coords = [Coords(1, 2), Coords(0, 1), Coords(1, 0), Coords(2, 1)];
+    let circle_1 = Circle(Dimensions(3, 3),  circle_1_coords.to_vec());
+
+    // combined object is supposed to be large enough to contain 2 lines
+    let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
+    let canvas = plot(lines_combined);
+
+    assert_eq!((canvas.0).0, 3);
+    assert_eq!((canvas.0).1, 3);
+
+    assert_eq!((canvas.1).len(), 9);
+
+    assert_eq!(canvas.1[0], PlottedCoords(0, 2, Representation::Canvas));
+    assert_eq!(canvas.1[1], PlottedCoords(1, 2, Representation::Circle));
+    assert_eq!(canvas.1[2], PlottedCoords(2, 2, Representation::Line));
+
+    assert_eq!(canvas.1[3], PlottedCoords(0, 1, Representation::Circle));
+    assert_eq!(canvas.1[4], PlottedCoords(1, 1, Representation::Line));
+    assert_eq!(canvas.1[5], PlottedCoords(2, 1, Representation::Circle));
+
+    assert_eq!(canvas.1[6], PlottedCoords(0, 0, Representation::Line));
+    assert_eq!(canvas.1[7], PlottedCoords(1, 0, Representation::Circle));
+    assert_eq!(canvas.1[8], PlottedCoords(2, 0, Representation::Canvas));
 }
 
 fn main () {
