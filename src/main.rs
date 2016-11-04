@@ -27,14 +27,25 @@ trait Plottable {
 
     fn get_coords(&self) -> Vec<Coords>;
 
-    fn get_representation(&self) -> Representation;
+    fn get_representation_at(&self, coords: Coords) -> Option<Representation>;
 }
 
 struct CombinedObject(Dimensions, Vec<Box<Plottable>>);
 
-impl CombinedObject {
+impl Plottable for CombinedObject {
     fn get_dimensions(&self) -> Dimensions {
         self.0
+    }
+
+    fn get_coords(&self) -> Vec<Coords> {
+        let mut coords = vec![];
+
+        for contained_plottable in self.1.iter() {
+            let contained_coords = contained_plottable.get_coords();
+            coords.extend(contained_coords.clone());
+        }
+
+        coords
     }
 
     fn get_representation_at(&self, coords: Coords) -> Option<Representation> {
@@ -43,7 +54,7 @@ impl CombinedObject {
             let result = contained_coords.iter().find(|a| **a == coords);
 
             match result {
-                Some(_) => { return Some(contained_plottable.get_representation())},
+                Some(matched_contained_coords) => { return contained_plottable.get_representation_at(*matched_contained_coords) },
                 None => {},
             };
         }
@@ -65,8 +76,8 @@ impl Plottable for Line {
         self.1.clone()
     }
 
-    fn get_representation(&self) -> Representation {
-        Representation::Line
+    fn get_representation_at(&self, _: Coords) -> Option<Representation> {
+        Some(Representation::Line)
     }
 }
 
@@ -82,8 +93,8 @@ impl Plottable for Circle {
         self.1.clone()
     }
 
-    fn get_representation(&self) -> Representation {
-        Representation::Circle
+    fn get_representation_at(&self, _: Coords) -> Option<Representation> {
+        Some(Representation::Circle)
     }
 }
 
@@ -133,7 +144,7 @@ fn calc_coords_from_dimensions(dimensions: Dimensions) -> Vec<Coords> {
         .collect()
 }
 
-fn plot(a: CombinedObject) -> Canvas {
+fn plot(a: Box<Plottable>) -> Canvas {
     let mut canvas_coords = calc_coords_from_dimensions(a.get_dimensions())
         .iter()
         .map(|fill_coords| {
@@ -145,7 +156,7 @@ fn plot(a: CombinedObject) -> Canvas {
 
     canvas_coords.sort_by_key(|&PlottedCoords(x, y, _)| (!y, x));
 
-    Canvas(a.0, canvas_coords)
+    Canvas(a.get_dimensions(), canvas_coords)
 }
 
 // -- tests --
@@ -199,7 +210,7 @@ fn test_plot_line() {
 
     // combined object is supposed to be large enough to contain 2 lines
     let lines_combined = combine(Box::new(line_1), Box::new(line_2));
-    let canvas = plot(lines_combined);
+    let canvas = plot(Box::new(lines_combined));
 
     assert_eq!((canvas.0).0, 3);
     assert_eq!((canvas.0).1, 3);
@@ -231,7 +242,7 @@ fn test_plot_circle() {
 
     // combined object is supposed to be large enough to contain 2 lines
     let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
-    let canvas = plot(lines_combined);
+    let canvas = plot(Box::new(lines_combined));
 
     assert_eq!((canvas.0).0, 3);
     assert_eq!((canvas.0).1, 3);
