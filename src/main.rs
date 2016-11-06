@@ -102,15 +102,24 @@ impl Plottable for Circle {
 struct Canvas(Dimensions, Vec<PlottedCoords>);
 
 // -- helper --
-fn get_max_coord_from_coords(coords: std::slice::Iter<Coords>, pluck_fn: &Fn(&Coords) -> u32) -> u32 {
+fn get_dimensions_from_coords(coords: Vec<Coords>) -> Dimensions {
+    let x = get_max_coord_from_coords(coords.clone().iter(), &|a| a.0);
+    let y = get_max_coord_from_coords(coords.clone().iter(), &|a| a.1);
+
+    Dimensions(x + 1, y + 1)
+}
+
+fn get_max_coord_from_coords<'a, I: Iterator<Item=&'a Coords>>(coords: I, pluck_fn: &Fn(&Coords) -> u32) -> u32 {
     coords.map(pluck_fn).max().unwrap()
 }
 
-fn get_max_dimensions_from_coords(coords: std::slice::Iter<Coords>) -> Dimensions {
-    let max_x = get_max_coord_from_coords(coords.clone(), &|coords| coords.0);
-    let max_y = get_max_coord_from_coords(coords.clone(), &|coords| coords.1);
+#[test]
+fn test_get_dimension_from_coords() {
+    let coords = vec![Coords(0, 0), Coords(2, 1), Coords(5, 9), Coords(10, 5)];
+    let dimensions = get_dimensions_from_coords(coords);
 
-    Dimensions(max_x + 1, max_y + 1)
+    assert_eq!(11, dimensions.0);
+    assert_eq!(10, dimensions.1);
 }
 
 // -- functions --
@@ -123,7 +132,7 @@ fn combine<T: Plottable + 'static, U: Plottable + 'static>(a: Box<T>, b: Box<U>)
     contained_coords.extend(contained_objects[0].get_coords().iter());
     contained_coords.extend(contained_objects[1].get_coords().iter());
 
-    let dimensions = get_max_dimensions_from_coords(contained_coords.iter());
+    let dimensions = get_dimensions_from_coords(contained_coords);
     CombinedObject(dimensions, contained_objects)
 }
 
