@@ -113,15 +113,6 @@ fn get_max_coord_from_coords<'a, I: Iterator<Item=&'a Coords>>(coords: I, pluck_
     coords.map(pluck_fn).max().unwrap()
 }
 
-#[test]
-fn test_get_dimension_from_coords() {
-    let coords = vec![Coords(0, 0), Coords(2, 1), Coords(5, 9), Coords(10, 5)];
-    let dimensions = get_dimensions_from_coords(coords);
-
-    assert_eq!(11, dimensions.0);
-    assert_eq!(10, dimensions.1);
-}
-
 // -- functions --
 fn combine<T: Plottable + 'static, U: Plottable + 'static>(a: Box<T>, b: Box<U>) -> CombinedObject {
     let mut contained_objects: Vec<Box<Plottable>> = Vec::new();
@@ -163,6 +154,15 @@ fn plot(a: Box<Plottable>) -> Canvas {
 }
 
 // -- tests --
+#[test]
+fn test_get_dimension_from_coords() {
+    let coords = vec![Coords(0, 0), Coords(2, 1), Coords(5, 9), Coords(10, 5)];
+    let dimensions = get_dimensions_from_coords(coords);
+
+    assert_eq!(11, dimensions.0);
+    assert_eq!(10, dimensions.1);
+}
+
 #[test]
 fn test_combine_expands_dimensions_to_fit_largest_object_line() {
     // diagonal line, left bottom to top right
