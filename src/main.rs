@@ -240,6 +240,22 @@ fn plot(a: Box<Plottable>) -> Canvas {
 }
 
 // -- tests --
+fn fixtures_diagonal_line_ltr() -> Line {
+    Line::new(Coords(0, 0), Coords(2, 2))
+}
+
+fn fixtures_horizontal_line() -> Line {
+    Line::new(Coords(0, 0), Coords(2, 0))
+}
+
+fn fixtures_vertical_line() -> Line {
+    Line::new(Coords(0, 0), Coords(0, 3))
+}
+
+fn fixtures_circle() -> Circle {
+    Circle::new(Coords(1, 1), 1)
+}
+
 #[test]
 fn test_new_circle() {
     let circle = Circle::new(Coords(1, 1), 1);
@@ -300,13 +316,8 @@ fn test_get_dimension_from_coords() {
 
 #[test]
 fn test_combine_expands_dimensions_to_fit_largest_object_line() {
-    // diagonal line, left bottom to top right
-    let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
-    let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
-
-    // horizontal line, bottom left to bottom right
-    let line_2_coords = [Coords(0, 0), Coords(1, 0), Coords(2, 0)];
-    let line_2 = Line(Dimensions(3, 1),  line_2_coords.to_vec());
+    let line_1 = fixtures_diagonal_line_ltr();
+    let line_2 = fixtures_horizontal_line();
 
     // combined object is supposed to be large enough to contain 2 lines
     let lines_combined = combine(Box::new(line_1), Box::new(line_2));
@@ -319,13 +330,8 @@ fn test_combine_expands_dimensions_to_fit_largest_object_line() {
 
 #[test]
 fn test_combine_expands_dimensions_to_fit_largest_object_circle() {
-    // diagonal line, left bottom to top right
-    let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
-    let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
-
-    // circle with radius 1
-    let circle_1_coords = [Coords(1, 2), Coords(0, 1), Coords(1, 0), Coords(2, 1)];
-    let circle_1 = Circle(Dimensions(3, 3),  circle_1_coords.to_vec());
+    let line_1 = fixtures_diagonal_line_ltr();
+    let circle_1 = fixtures_circle();
 
     // combined object is supposed to be large enough to contain 2 lines
     let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
@@ -338,17 +344,9 @@ fn test_combine_expands_dimensions_to_fit_largest_object_circle() {
 
 #[test]
 fn test_plot_merged_object() {
-    // diagonal line, left bottom to top right
-    let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
-    let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
-
-    // horizontal line, bottom left to bottom right
-    let line_2_coords = [Coords(0, 0), Coords(1, 0), Coords(2, 0)];
-    let line_2 = Line(Dimensions(3, 1),  line_2_coords.to_vec());
-
-    // vertical line, bottom left to top left
-    let line_3_coords = [Coords(0, 0), Coords(0, 1), Coords(0, 2), Coords(0, 3)];
-    let line_3 = Line(Dimensions(1, 4),  line_3_coords.to_vec());
+    let line_1 = fixtures_diagonal_line_ltr();
+    let line_2 = fixtures_horizontal_line();
+    let line_3 = fixtures_vertical_line();
 
     // combined object is supposed to be large enough to contain 2 lines
     let lines_combined_1 = combine(Box::new(line_1), Box::new(line_2));
@@ -380,13 +378,8 @@ fn test_plot_merged_object() {
 
 #[test]
 fn test_plot_line() {
-    // diagonal line, left bottom to top right
-    let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
-    let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
-
-    // horizontal line, bottom left to bottom right
-    let line_2_coords = [Coords(0, 0), Coords(1, 0), Coords(2, 0)];
-    let line_2 = Line(Dimensions(3, 1),  line_2_coords.to_vec());
+    let line_1 = fixtures_diagonal_line_ltr();
+    let line_2 = fixtures_horizontal_line();
 
     // combined object is supposed to be large enough to contain 2 lines
     let lines_combined = combine(Box::new(line_1), Box::new(line_2));
@@ -412,13 +405,8 @@ fn test_plot_line() {
 
 #[test]
 fn test_plot_circle() {
-    // diagonal line, left bottom to top right
-    let line_1_coords = [Coords(0, 0), Coords(1, 1), Coords(2, 2)];
-    let line_1 = Line(Dimensions(3, 3),  line_1_coords.to_vec());
-
-    // circle with radius 1
-    let circle_1_coords = [Coords(1, 2), Coords(0, 1), Coords(1, 0), Coords(2, 1)];
-    let circle_1 = Circle(Dimensions(3, 3),  circle_1_coords.to_vec());
+    let line_1 = fixtures_diagonal_line_ltr();
+    let circle_1 = fixtures_circle();
 
     // combined object is supposed to be large enough to contain 2 lines
     let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
