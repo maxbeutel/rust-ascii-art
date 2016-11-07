@@ -4,6 +4,7 @@
 // (need to implement Hash for Hashmap ...)
 
 
+// -- structs --
 #[derive(Debug, PartialEq, Clone)]
 enum Representation {
     Canvas,
@@ -14,11 +15,38 @@ enum Representation {
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Coords(u32, u32);
 
+impl Coords {
+    fn from_dimensions(dimensions: Dimensions) -> Vec<Coords> {
+        fn coords_from_index(i: u32, dimensions: Dimensions) -> Coords {
+            if i < dimensions.0 { Coords(i, 0) }
+            else { Coords(i % dimensions.0, i / dimensions.0) }
+        };
+
+        (0..(dimensions.0 * dimensions.1))
+            .map(|i| { coords_from_index(i, dimensions) })
+            .collect()
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 struct PlottedCoords(u32, u32, Representation);
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Dimensions(u32, u32);
+
+impl Dimensions {
+    fn from_coords(coords: &Vec<Coords>) -> Dimensions {
+        let x = Dimensions::get_max_coord_from_coords(coords.clone().iter(), &|a| a.0);
+        let y = Dimensions::get_max_coord_from_coords(coords.clone().iter(), &|a| a.1);
+
+        Dimensions(x + 1, y + 1)
+    }
+
+    // @TODO private
+    fn get_max_coord_from_coords<'a, I: Iterator<Item=&'a Coords>>(coords: I, pluck_fn: &Fn(&Coords) -> u32) -> u32 {
+        coords.map(pluck_fn).max().unwrap()
+    }
+}
 
 
 // -- Plottable objects --
@@ -113,7 +141,7 @@ impl Line {
             }
         }
 
-        let dimensions = get_dimensions_from_coords(&coords);
+        let dimensions = Dimensions::from_coords(&coords);
         Line(dimensions, coords)
     }
 }
@@ -165,7 +193,7 @@ impl Circle {
             }
         }
 
-        let dimensions = get_dimensions_from_coords(&coords);
+        let dimensions = Dimensions::from_coords(&coords);
         Circle(dimensions, coords)
     }
 }
@@ -187,18 +215,6 @@ impl Plottable for Circle {
 #[derive(Debug)]
 struct Canvas(Dimensions, Vec<PlottedCoords>);
 
-// -- helper --
-fn get_dimensions_from_coords(coords: &Vec<Coords>) -> Dimensions {
-    let x = get_max_coord_from_coords(coords.clone().iter(), &|a| a.0);
-    let y = get_max_coord_from_coords(coords.clone().iter(), &|a| a.1);
-
-    Dimensions(x + 1, y + 1)
-}
-
-fn get_max_coord_from_coords<'a, I: Iterator<Item=&'a Coords>>(coords: I, pluck_fn: &Fn(&Coords) -> u32) -> u32 {
-    coords.map(pluck_fn).max().unwrap()
-}
-
 // -- functions --
 fn combine<T: Plottable + 'static, U: Plottable + 'static>(a: Box<T>, b: Box<U>) -> CombinedObject {
     let mut contained_objects: Vec<Box<Plottable>> = vec![];
@@ -209,23 +225,12 @@ fn combine<T: Plottable + 'static, U: Plottable + 'static>(a: Box<T>, b: Box<U>)
     contained_coords.extend(contained_objects[0].get_coords().iter());
     contained_coords.extend(contained_objects[1].get_coords().iter());
 
-    let dimensions = get_dimensions_from_coords(&contained_coords);
+    let dimensions = Dimensions::from_coords(&contained_coords);
     CombinedObject(dimensions, contained_objects)
 }
 
-fn calc_coords_from_dimensions(dimensions: Dimensions) -> Vec<Coords> {
-    fn coords_from_index(i: u32, dimensions: Dimensions) -> Coords {
-        if i < dimensions.0 { Coords(i, 0) }
-        else { Coords(i % dimensions.0, i / dimensions.0) }
-    };
-
-    (0..(dimensions.0 * dimensions.1))
-        .map(|i| { coords_from_index(i, dimensions) })
-        .collect()
-}
-
 fn plot(a: Box<Plottable>) -> Canvas {
-    let mut canvas_coords = calc_coords_from_dimensions(a.get_dimensions())
+    let mut canvas_coords = Coords::from_dimensions(a.get_dimensions())
         .iter()
         .map(|fill_coords| {
             match a.get_representation_at(*fill_coords) {
@@ -308,7 +313,7 @@ fn test_new_diagonal_line_right_to_left() {
 #[test]
 fn test_get_dimension_from_coords() {
     let coords = vec![Coords(0, 0), Coords(2, 1), Coords(5, 9), Coords(10, 5)];
-    let dimensions = get_dimensions_from_coords(&coords);
+    let dimensions = Dimensions::from_coords(&coords);
 
     assert_eq!(11, dimensions.0);
     assert_eq!(10, dimensions.1);
