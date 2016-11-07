@@ -135,6 +135,41 @@ impl Plottable for Line {
 #[derive(Debug)]
 struct Circle(Dimensions, Vec<Coords>);
 
+impl Circle {
+    fn new(point: Coords, radius: u32) -> Circle {
+        let Coords(x0, y0) = point;
+
+        let mut x = radius;
+        let mut y = 0;
+
+        let mut err: i32 = 0;
+
+        let mut coords = vec![];
+
+        while x >= y {
+            coords.push(Coords(x0 + x, y0 + y));
+            coords.push(Coords(x0 + y, y0 + x));
+            coords.push(Coords(x0 - y, y0 + x));
+            coords.push(Coords(x0 - x, y0 + y));
+            coords.push(Coords(x0 - x, y0 - y));
+            coords.push(Coords(x0 - y, y0 - x));
+            coords.push(Coords(x0 + y, y0 - x));
+            coords.push(Coords(x0 + x, y0 - y));
+
+            y += 1;
+            err += 1 + 2 * y as i32;
+
+            if 2 * (err - x as i32) + 1 > 0 {
+                x -= 1;
+                err += 1 - 2 * x as i32;
+            }
+        }
+
+        let dimensions = get_dimensions_from_coords(&coords);
+        Circle(dimensions, coords)
+    }
+}
+
 impl Plottable for Circle {
     fn get_dimensions(&self) -> Dimensions {
         self.0
@@ -205,6 +240,15 @@ fn plot(a: Box<Plottable>) -> Canvas {
 }
 
 // -- tests --
+#[test]
+fn test_new_circle() {
+    let circle = Circle::new(Coords(1, 1), 1);
+
+    assert_eq!(Dimensions(3, 3), circle.get_dimensions());
+    // @TODO this is not so nice, some coords are duplicated
+    assert_eq!(vec![Coords(2, 1), Coords(1, 2), Coords(1, 2), Coords(0, 1), Coords(0, 1), Coords(1, 0), Coords(1, 0), Coords(2, 1)], circle.get_coords());
+}
+
 #[test]
 fn test_new_horizontal_line_1() {
     let line = Line::new(Coords(0, 0), Coords(3, 0));
