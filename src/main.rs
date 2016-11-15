@@ -8,9 +8,6 @@
 #[derive(Debug, PartialEq, Clone)]
 enum Representation {
     Canvas,
-    // deprecated
-    Line,
-
     VerticalLine,
     HorizontalLine,
     DiagonalLineLeftToRight,
@@ -20,48 +17,6 @@ enum Representation {
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 struct Coords(u32, u32);
-
-use std::cmp as cmp;
-
-impl cmp::Eq for Coords {
-
-}
-
-impl cmp::PartialOrd for Coords {
-    fn partial_cmp(&self, other: &Coords) -> Option<cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl cmp::Ord for Coords {
-    fn cmp(&self, other: &Coords) -> cmp::Ordering {
-        if self.0 == other.0 {
-            if self.1 == other.1 {
-                return cmp::Ordering::Equal;
-            }
-
-            if self.1 > other.1 {
-                return cmp::Ordering::Greater;
-            }
-
-            return cmp::Ordering::Less;
-        } else {
-            if self.0 > other.0 {
-                if self.1 > other.1 {
-                    return cmp::Ordering::Greater;
-                }
-
-                return cmp::Ordering::Less;
-            }
-
-            if self.1 > other.1 {
-                return cmp::Ordering::Greater;
-            }
-
-            return cmp::Ordering::Less;
-        }
-    }
-}
 
 impl Coords {
     fn from_dimensions(dimensions: Dimensions) -> Vec<Coords> {
@@ -156,9 +111,9 @@ impl Line {
         } else if x0 == x1 {
             Representation::VerticalLine
         } else if y0 > y1 {
-            Representation::DiagonalLineLeftToRight
-        } else {
             Representation::DiagonalLineRightToLeft
+        } else {
+            Representation::DiagonalLineLeftToRight
         }
     }
 
@@ -220,11 +175,11 @@ impl Plottable for Line {
     }
 
     fn get_representation_at(&self, _: Coords) -> Option<Representation> {
-        let coords_min = self.get_coords();
-        let start = coords_min.iter().min().unwrap();
+        let mut coords = self.get_coords();
+        coords.sort_by_key(|&Coords(x, y)|(x, y));
 
-        let coords_max = self.get_coords();
-        let end = coords_max.iter().max().unwrap();
+        let start = coords.first().unwrap();
+        let end = coords.last().unwrap();
 
         let representation = Line::get_line_representation(*start, *end);
         Some(representation)
@@ -319,9 +274,12 @@ fn draw(canvas: Canvas) {
     for PlottedCoords(x, _, representation) in canvas.1 {
         let chr = match representation {
             Representation::Circle => 'o',
-            Representation::Line => '-',
             Representation::Canvas => ' ',
-            _ => '?',
+            Representation::HorizontalLine => '-',
+            Representation::VerticalLine => '|',
+            Representation::DiagonalLineLeftToRight => '/',
+            Representation::DiagonalLineRightToLeft => '\\',
+            //_ => '?',
         };
 
         if x == (canvas.0).0 - 1 { println!("{}", chr); }
@@ -347,192 +305,198 @@ fn fixtures_circle() -> Circle {
 }
 
 #[test]
-fn test_coords_cmp() {
-    let coords_1 = Coords(0, 0);
-    let coords_2 = Coords(1, 0);
-    let coords_3 = Coords(0, 2);
+fn test_new_circle() {
+    let circle = Circle::new(Coords(1, 1), 1);
 
-    let mut coords = vec![coords_2, coords_3, coords_1];
-    coords.sort();
-
-    assert_eq!(coords[0], coords_1);
-    assert_eq!(coords[1], coords_2);
-    assert_eq!(coords[2], coords_3);
+    assert_eq!(Dimensions(3, 3), circle.get_dimensions());
+    // @TODO this is not so nice, some coords are duplicated
+    assert_eq!(vec![Coords(2, 1), Coords(1, 2), Coords(1, 2), Coords(0, 1), Coords(0, 1), Coords(1, 0), Coords(1, 0), Coords(2, 1)], circle.get_coords());
 }
 
-// #[test]
-// fn test_new_circle() {
-//     let circle = Circle::new(Coords(1, 1), 1);
+#[test]
+fn test_new_horizontal_line_1() {
+    let line = Line::new(Coords(0, 0), Coords(3, 0));
 
-//     assert_eq!(Dimensions(3, 3), circle.get_dimensions());
-//     // @TODO this is not so nice, some coords are duplicated
-//     assert_eq!(vec![Coords(2, 1), Coords(1, 2), Coords(1, 2), Coords(0, 1), Coords(0, 1), Coords(1, 0), Coords(1, 0), Coords(2, 1)], circle.get_coords());
-// }
+    assert_eq!(Dimensions(4, 1), line.get_dimensions());
+    assert_eq!(vec![Coords(0, 0), Coords(1, 0), Coords(2, 0), Coords(3, 0)], line.get_coords());
 
-// #[test]
-// fn test_new_horizontal_line_1() {
-//     let line = Line::new(Coords(0, 0), Coords(3, 0));
+    assert_eq!(Representation::HorizontalLine, line.get_representation_at(Coords(0, 0)).unwrap());
+    assert_eq!(Representation::HorizontalLine, line.get_representation_at(Coords(1, 0)).unwrap());
+    assert_eq!(Representation::HorizontalLine, line.get_representation_at(Coords(2, 0)).unwrap());
+    assert_eq!(Representation::HorizontalLine, line.get_representation_at(Coords(3, 0)).unwrap());
+}
 
-//     assert_eq!(Dimensions(4, 1), line.get_dimensions());
-//     assert_eq!(vec![Coords(0, 0), Coords(1, 0), Coords(2, 0), Coords(3, 0)], line.get_coords());
-// }
+#[test]
+fn test_new_horizontal_line_2() {
+    let line = Line::new(Coords(1, 1), Coords(3, 1));
 
-// #[test]
-// fn test_new_horizontal_line_2() {
-//     let line = Line::new(Coords(1, 1), Coords(3, 1));
+    assert_eq!(Dimensions(4, 2), line.get_dimensions());
+    assert_eq!(vec![Coords(1, 1), Coords(2, 1), Coords(3, 1)], line.get_coords());
+}
 
-//     assert_eq!(Dimensions(4, 2), line.get_dimensions());
-//     assert_eq!(vec![Coords(1, 1), Coords(2, 1), Coords(3, 1)], line.get_coords());
-// }
+#[test]
+fn test_new_vertical_line() {
+    let line = Line::new(Coords(0, 0), Coords(0, 3));
 
-// #[test]
-// fn test_new_vertical_line() {
-//     let line = Line::new(Coords(0, 0), Coords(0, 3));
+    assert_eq!(Dimensions(1, 4), line.get_dimensions());
+    assert_eq!(vec![Coords(0, 0), Coords(0, 1), Coords(0, 2), Coords(0, 3)], line.get_coords());
 
-//     assert_eq!(Dimensions(1, 4), line.get_dimensions());
-//     assert_eq!(vec![Coords(0, 0), Coords(0, 1), Coords(0, 2), Coords(0, 3)], line.get_coords());
-// }
+    assert_eq!(Representation::VerticalLine, line.get_representation_at(Coords(0, 0)).unwrap());
+    assert_eq!(Representation::VerticalLine, line.get_representation_at(Coords(0, 1)).unwrap());
+    assert_eq!(Representation::VerticalLine, line.get_representation_at(Coords(0, 2)).unwrap());
+    assert_eq!(Representation::VerticalLine, line.get_representation_at(Coords(0, 3)).unwrap());
+}
 
-// #[test]
-// fn test_new_diagonal_line_left_to_right() {
-//     let line = Line::new(Coords(0, 0), Coords(3, 3));
+#[test]
+fn test_new_diagonal_line_left_to_right() {
+    let line = Line::new(Coords(0, 0), Coords(3, 3));
 
-//     assert_eq!(Dimensions(4, 4), line.get_dimensions());
-//     assert_eq!(vec![Coords(0, 0), Coords(1, 1), Coords(2, 2),  Coords(3, 3)], line.get_coords());
-// }
+    assert_eq!(Dimensions(4, 4), line.get_dimensions());
+    assert_eq!(vec![Coords(0, 0), Coords(1, 1), Coords(2, 2),  Coords(3, 3)], line.get_coords());
 
-// #[test]
-// fn test_new_diagonal_line_right_to_left() {
-//     let line = Line::new(Coords(0, 3), Coords(3, 0));
+    assert_eq!(Representation::DiagonalLineLeftToRight, line.get_representation_at(Coords(0, 0)).unwrap());
+    assert_eq!(Representation::DiagonalLineLeftToRight, line.get_representation_at(Coords(1, 1)).unwrap());
+    assert_eq!(Representation::DiagonalLineLeftToRight, line.get_representation_at(Coords(2, 2)).unwrap());
+    assert_eq!(Representation::DiagonalLineLeftToRight, line.get_representation_at(Coords(3, 3)).unwrap());
+}
 
-//     assert_eq!(Dimensions(4, 4), line.get_dimensions());
-//     assert_eq!(vec![Coords(0, 3), Coords(1, 2), Coords(2, 1),  Coords(3, 0)], line.get_coords());
-// }
+#[test]
+fn test_new_diagonal_line_right_to_left() {
+    let line = Line::new(Coords(0, 3), Coords(3, 0));
 
-// #[test]
-// fn test_get_dimension_from_coords() {
-//     let coords = vec![Coords(0, 0), Coords(2, 1), Coords(5, 9), Coords(10, 5)];
-//     let dimensions = Dimensions::from_coords(&coords);
+    assert_eq!(Dimensions(4, 4), line.get_dimensions());
+    assert_eq!(vec![Coords(0, 3), Coords(1, 2), Coords(2, 1),  Coords(3, 0)], line.get_coords());
 
-//     assert_eq!(11, dimensions.0);
-//     assert_eq!(10, dimensions.1);
-// }
+    assert_eq!(Representation::DiagonalLineRightToLeft, line.get_representation_at(Coords(0, 3)).unwrap());
+    assert_eq!(Representation::DiagonalLineRightToLeft, line.get_representation_at(Coords(1, 2)).unwrap());
+    assert_eq!(Representation::DiagonalLineRightToLeft, line.get_representation_at(Coords(2, 1)).unwrap());
+    assert_eq!(Representation::DiagonalLineRightToLeft, line.get_representation_at(Coords(3, 0)).unwrap());
+}
 
-// #[test]
-// fn test_combine_expands_dimensions_to_fit_largest_object_line() {
-//     let line_1 = fixtures_diagonal_line_ltr();
-//     let line_2 = fixtures_horizontal_line();
+#[test]
+fn test_get_dimension_from_coords() {
+    let coords = vec![Coords(0, 0), Coords(2, 1), Coords(5, 9), Coords(10, 5)];
+    let dimensions = Dimensions::from_coords(&coords);
 
-//     // combined object is supposed to be large enough to contain 2 lines
-//     let lines_combined = combine(Box::new(line_1), Box::new(line_2));
+    assert_eq!(11, dimensions.0);
+    assert_eq!(10, dimensions.1);
+}
 
-//     assert_eq!((lines_combined.0).0, 3);
-//     assert_eq!((lines_combined.0).1, 3);
+#[test]
+fn test_combine_expands_dimensions_to_fit_largest_object_line() {
+    let line_1 = fixtures_diagonal_line_ltr();
+    let line_2 = fixtures_horizontal_line();
 
-//     assert_eq!(lines_combined.1.len(), 2);
-// }
+    // combined object is supposed to be large enough to contain 2 lines
+    let lines_combined = combine(Box::new(line_1), Box::new(line_2));
 
-// #[test]
-// fn test_combine_expands_dimensions_to_fit_largest_object_circle() {
-//     let line_1 = fixtures_diagonal_line_ltr();
-//     let circle_1 = fixtures_circle();
+    assert_eq!((lines_combined.0).0, 3);
+    assert_eq!((lines_combined.0).1, 3);
 
-//     // combined object is supposed to be large enough to contain 2 lines
-//     let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
+    assert_eq!(lines_combined.1.len(), 2);
+}
 
-//     assert_eq!((lines_combined.0).0, 3);
-//     assert_eq!((lines_combined.0).1, 3);
+#[test]
+fn test_combine_expands_dimensions_to_fit_largest_object_circle() {
+    let line_1 = fixtures_diagonal_line_ltr();
+    let circle_1 = fixtures_circle();
 
-//     assert_eq!(lines_combined.1.len(), 2);
-// }
+    // combined object is supposed to be large enough to contain 2 lines
+    let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
 
-// #[test]
-// fn test_plot_merged_object() {
-//     let line_1 = fixtures_diagonal_line_ltr();
-//     let line_2 = fixtures_horizontal_line();
-//     let line_3 = fixtures_vertical_line();
+    assert_eq!((lines_combined.0).0, 3);
+    assert_eq!((lines_combined.0).1, 3);
 
-//     // combined object is supposed to be large enough to contain 2 lines
-//     let lines_combined_1 = combine(Box::new(line_1), Box::new(line_2));
-//     let lines_combined_2 = combine(Box::new(lines_combined_1), Box::new(line_3));
+    assert_eq!(lines_combined.1.len(), 2);
+}
 
-//     let canvas = plot(Box::new(lines_combined_2));
+#[test]
+fn test_plot_merged_object() {
+    let line_1 = fixtures_diagonal_line_ltr();
+    let line_2 = fixtures_horizontal_line();
+    let line_3 = fixtures_vertical_line();
 
-//     assert_eq!((canvas.0).0, 3);
-//     assert_eq!((canvas.0).1, 4);
+    // combined object is supposed to be large enough to contain 2 lines
+    let lines_combined_1 = combine(Box::new(line_1), Box::new(line_2));
+    let lines_combined_2 = combine(Box::new(lines_combined_1), Box::new(line_3));
 
-//     assert_eq!((canvas.1).len(), 12);
+    let canvas = plot(Box::new(lines_combined_2));
 
-//     assert_eq!(canvas.1[0], PlottedCoords(0, 3, Representation::Line));
-//     assert_eq!(canvas.1[1], PlottedCoords(1, 3, Representation::Canvas));
-//     assert_eq!(canvas.1[2], PlottedCoords(2, 3, Representation::Canvas));
+    assert_eq!((canvas.0).0, 3);
+    assert_eq!((canvas.0).1, 4);
 
-//     assert_eq!(canvas.1[3], PlottedCoords(0, 2, Representation::Line));
-//     assert_eq!(canvas.1[4], PlottedCoords(1, 2, Representation::Canvas));
-//     assert_eq!(canvas.1[5], PlottedCoords(2, 2, Representation::Line));
+    assert_eq!((canvas.1).len(), 12);
 
-//     assert_eq!(canvas.1[6], PlottedCoords(0, 1, Representation::Line));
-//     assert_eq!(canvas.1[7], PlottedCoords(1, 1, Representation::Line));
-//     assert_eq!(canvas.1[8], PlottedCoords(2, 1, Representation::Canvas));
+    assert_eq!(canvas.1[0], PlottedCoords(0, 3, Representation::VerticalLine));
+    assert_eq!(canvas.1[1], PlottedCoords(1, 3, Representation::Canvas));
+    assert_eq!(canvas.1[2], PlottedCoords(2, 3, Representation::Canvas));
 
-//     assert_eq!(canvas.1[9], PlottedCoords(0, 0, Representation::Line));
-//     assert_eq!(canvas.1[10], PlottedCoords(1, 0, Representation::Line));
-//     assert_eq!(canvas.1[11], PlottedCoords(2, 0, Representation::Line));
-// }
+    assert_eq!(canvas.1[3], PlottedCoords(0, 2, Representation::VerticalLine));
+    assert_eq!(canvas.1[4], PlottedCoords(1, 2, Representation::Canvas));
+    assert_eq!(canvas.1[5], PlottedCoords(2, 2, Representation::DiagonalLineLeftToRight));
 
-// #[test]
-// fn test_plot_line() {
-//     let line_1 = fixtures_diagonal_line_ltr();
-//     let line_2 = fixtures_horizontal_line();
+    assert_eq!(canvas.1[6], PlottedCoords(0, 1, Representation::VerticalLine));
+    assert_eq!(canvas.1[7], PlottedCoords(1, 1, Representation::DiagonalLineLeftToRight));
+    assert_eq!(canvas.1[8], PlottedCoords(2, 1, Representation::Canvas));
 
-//     // combined object is supposed to be large enough to contain 2 lines
-//     let lines_combined = combine(Box::new(line_1), Box::new(line_2));
-//     let canvas = plot(Box::new(lines_combined));
+    assert_eq!(canvas.1[9], PlottedCoords(0, 0, Representation::DiagonalLineLeftToRight));
+    assert_eq!(canvas.1[10], PlottedCoords(1, 0, Representation::HorizontalLine));
+    assert_eq!(canvas.1[11], PlottedCoords(2, 0, Representation::HorizontalLine));
+}
 
-//     assert_eq!((canvas.0).0, 3);
-//     assert_eq!((canvas.0).1, 3);
+#[test]
+fn test_plot_line() {
+    let line_1 = fixtures_diagonal_line_ltr();
+    let line_2 = fixtures_horizontal_line();
 
-//     assert_eq!((canvas.1).len(), 9);
+    // combined object is supposed to be large enough to contain 2 lines
+    let lines_combined = combine(Box::new(line_1), Box::new(line_2));
+    let canvas = plot(Box::new(lines_combined));
 
-//     assert_eq!(canvas.1[0], PlottedCoords(0, 2, Representation::Canvas));
-//     assert_eq!(canvas.1[1], PlottedCoords(1, 2, Representation::Canvas));
-//     assert_eq!(canvas.1[2], PlottedCoords(2, 2, Representation::Line));
+    assert_eq!((canvas.0).0, 3);
+    assert_eq!((canvas.0).1, 3);
 
-//     assert_eq!(canvas.1[3], PlottedCoords(0, 1, Representation::Canvas));
-//     assert_eq!(canvas.1[4], PlottedCoords(1, 1, Representation::Line));
-//     assert_eq!(canvas.1[5], PlottedCoords(2, 1, Representation::Canvas));
+    assert_eq!((canvas.1).len(), 9);
 
-//     assert_eq!(canvas.1[6], PlottedCoords(0, 0, Representation::Line));
-//     assert_eq!(canvas.1[7], PlottedCoords(1, 0, Representation::Line));
-//     assert_eq!(canvas.1[8], PlottedCoords(2, 0, Representation::Line));
-// }
+    assert_eq!(canvas.1[0], PlottedCoords(0, 2, Representation::Canvas));
+    assert_eq!(canvas.1[1], PlottedCoords(1, 2, Representation::Canvas));
+    assert_eq!(canvas.1[2], PlottedCoords(2, 2, Representation::DiagonalLineLeftToRight));
 
-// #[test]
-// fn test_plot_circle() {
-//     let line_1 = fixtures_diagonal_line_ltr();
-//     let circle_1 = fixtures_circle();
+    assert_eq!(canvas.1[3], PlottedCoords(0, 1, Representation::Canvas));
+    assert_eq!(canvas.1[4], PlottedCoords(1, 1, Representation::DiagonalLineLeftToRight));
+    assert_eq!(canvas.1[5], PlottedCoords(2, 1, Representation::Canvas));
 
-//     // combined object is supposed to be large enough to contain 2 lines
-//     let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
-//     let canvas = plot(Box::new(lines_combined));
+    assert_eq!(canvas.1[6], PlottedCoords(0, 0, Representation::DiagonalLineLeftToRight));
+    assert_eq!(canvas.1[7], PlottedCoords(1, 0, Representation::HorizontalLine));
+    assert_eq!(canvas.1[8], PlottedCoords(2, 0, Representation::HorizontalLine));
+}
 
-//     assert_eq!((canvas.0).0, 3);
-//     assert_eq!((canvas.0).1, 3);
+#[test]
+fn test_plot_circle() {
+    let line_1 = fixtures_diagonal_line_ltr();
+    let circle_1 = fixtures_circle();
 
-//     assert_eq!((canvas.1).len(), 9);
+    // combined object is supposed to be large enough to contain 2 lines
+    let lines_combined = combine(Box::new(line_1), Box::new(circle_1));
+    let canvas = plot(Box::new(lines_combined));
 
-//     assert_eq!(canvas.1[0], PlottedCoords(0, 2, Representation::Canvas));
-//     assert_eq!(canvas.1[1], PlottedCoords(1, 2, Representation::Circle));
-//     assert_eq!(canvas.1[2], PlottedCoords(2, 2, Representation::Line));
+    assert_eq!((canvas.0).0, 3);
+    assert_eq!((canvas.0).1, 3);
 
-//     assert_eq!(canvas.1[3], PlottedCoords(0, 1, Representation::Circle));
-//     assert_eq!(canvas.1[4], PlottedCoords(1, 1, Representation::Line));
-//     assert_eq!(canvas.1[5], PlottedCoords(2, 1, Representation::Circle));
+    assert_eq!((canvas.1).len(), 9);
 
-//     assert_eq!(canvas.1[6], PlottedCoords(0, 0, Representation::Line));
-//     assert_eq!(canvas.1[7], PlottedCoords(1, 0, Representation::Circle));
-//     assert_eq!(canvas.1[8], PlottedCoords(2, 0, Representation::Canvas));
-// }
+    assert_eq!(canvas.1[0], PlottedCoords(0, 2, Representation::Canvas));
+    assert_eq!(canvas.1[1], PlottedCoords(1, 2, Representation::Circle));
+    assert_eq!(canvas.1[2], PlottedCoords(2, 2, Representation::DiagonalLineLeftToRight));
+
+    assert_eq!(canvas.1[3], PlottedCoords(0, 1, Representation::Circle));
+    assert_eq!(canvas.1[4], PlottedCoords(1, 1, Representation::DiagonalLineLeftToRight));
+    assert_eq!(canvas.1[5], PlottedCoords(2, 1, Representation::Circle));
+
+    assert_eq!(canvas.1[6], PlottedCoords(0, 0, Representation::DiagonalLineLeftToRight));
+    assert_eq!(canvas.1[7], PlottedCoords(1, 0, Representation::Circle));
+    assert_eq!(canvas.1[8], PlottedCoords(2, 0, Representation::Canvas));
+}
 
 #[test]
 fn test_plot_horizontal_line()
