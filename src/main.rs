@@ -117,6 +117,60 @@ impl Line {
         }
     }
 
+    fn rotate(line: Line, rotation_center: Coords) -> Line {
+        // @TODO this is copy/pasted from get_representation
+        // @TODO only implemented for vertical to horizontal, left
+        // @TODO cut off if mapped x/y gets negative
+        let mut coords = line.get_coords();
+        coords.sort_by_key(|&Coords(x, y)|(x, y));
+
+        let start = coords.first().unwrap();
+        let end = coords.last().unwrap();
+
+        // @FIXME currently we can only rotate from start or end of the line
+        assert!(
+            (start.0 == rotation_center.0 && start.1 == rotation_center.1) ||
+            (end.0 == rotation_center.0 && end.1 == rotation_center.1)
+        );
+
+        // @TODO assert that line representation is either horizontal or vertical for now
+        let line_representation = Line::get_line_representation(*start, *end);
+        // 1 = down
+        // 2 = up
+        let rotation_direction = if rotation_center.0 == start.0 && rotation_center.1 == start.1 { 1 } else { 2 };
+
+
+        let mut coords_mapped = vec![];
+
+        // @TODO use rotation matrix?
+        for (i, &Coords(x, y)) in coords.iter().enumerate() {
+            if line_representation == Representation::HorizontalLine && rotation_direction == 1 {
+                let mapped_x = x - i as u32;
+                let mapped_y = y - i as u32;
+
+                coords_mapped.push(Coords(mapped_x, mapped_y));
+            } else if line_representation == Representation::VerticalLine && rotation_direction == 1 {
+                let mapped_x = x + i as u32;
+                let mapped_y = y - i as u32;
+
+                coords_mapped.push(Coords(mapped_x, mapped_y));
+            } else if line_representation == Representation::HorizontalLine && rotation_direction == 2 {
+                let mapped_x = x + i as u32;
+                let mapped_y = y + i as u32;
+
+                coords_mapped.push(Coords(mapped_x, mapped_y));
+            } else if line_representation == Representation::VerticalLine && rotation_direction == 2 {
+                let mapped_x = x - i as u32;
+                let mapped_y = y + i as u32;
+
+                coords_mapped.push(Coords(mapped_x, mapped_y));
+            }
+        }
+
+        let dimensions = Dimensions::from_coords(&coords);
+        Line(dimensions, coords_mapped)
+    }
+
     fn new(start: Coords, end: Coords) -> Line {
         // how to make this nicer and use tuple deconstruction?
         let x0 = start.0 as i32;
@@ -311,6 +365,24 @@ fn test_new_circle() {
     assert_eq!(Dimensions(3, 3), circle.get_dimensions());
     // @TODO this is not so nice, some coords are duplicated
     assert_eq!(vec![Coords(2, 1), Coords(1, 2), Coords(1, 2), Coords(0, 1), Coords(0, 1), Coords(1, 0), Coords(1, 0), Coords(2, 1)], circle.get_coords());
+}
+
+#[test]
+fn test_rotate_line_vertical_to_horizontal()
+{
+    let line = Line::new(Coords(5, 5), Coords(5, 9));
+    let rotated_line = Line::rotate(line, Coords(5, 5));
+
+    assert_eq!(vec![Coords(5, 5), Coords(6, 5), Coords(7, 5), Coords(8, 5), Coords(9, 5)], rotated_line.get_coords());
+}
+
+#[test]
+fn test_rotate_line_horizontal_to_vertical()
+{
+    let line = Line::new(Coords(5, 5), Coords(9, 5));
+    let rotated_line = Line::rotate(line, Coords(5, 5));
+
+    assert_eq!(vec![Coords(5, 5), Coords(5, 4), Coords(5, 3), Coords(5, 2), Coords(5, 1)], rotated_line.get_coords());
 }
 
 #[test]
